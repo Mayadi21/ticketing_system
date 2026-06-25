@@ -3,6 +3,8 @@
 import { createAdminClient, createClient } from '@/utils/supabase/server';
 import { cookies } from 'next/headers';
 
+import { sendTicketAssignmentEmail } from '@/utils/email/ticketAssigned';
+
 
 export async function getTicketMetadata() {
   const supabase = await createAdminClient(); // atau createClient() sesuai konfigurasi Anda
@@ -66,14 +68,10 @@ export async function submitTicketData(formData: FormData) {
     affectedBranchId = userData.branch_id; 
   }
 
-  if (!affectedBranchId) return { error: 'ID Cabang tidak valid atau tidak ditemukan.' };
+if (!affectedBranchId) return { error: 'ID Cabang tidak valid atau tidak ditemukan.' };
 
   try {
-    // =========================================================================
-    // BARU: GENERATE NOMOR TIKET SESUAI FORMAT (CONTOH: KPD-26-0001)
-    // =========================================================================
-    
-    // a. Ambil branch_code berdasarkan affectedBranchId (Contoh: id 3 -> KPD)
+    // 1. Generate Ticket Number
     const { data: branchData, error: branchError } = await supabase
       .from('branch')
       .select('branch_code')
@@ -83,13 +81,10 @@ export async function submitTicketData(formData: FormData) {
     if (branchError || !branchData?.branch_code) {
       throw new Error('Gagal mengambil kode cabang untuk penomoran tiket.');
     }
-    const branchCode = branchData.branch_code.trim(); // Bersihkan whitespace jika tipe data bpchar
-
-    // b. Dapatkan 2 digit tahun saat ini (Contoh: 2026 -> 26)
+    const branchCode = branchData.branch_code.trim(); 
     const currentYearFull = new Date().getFullYear();
     const year2Digit = currentYearFull.toString().slice(-2);
 
-    // c. Hitung total tiket yang sudah dibuat dari cabang tersebut di tahun berjalan untuk autoincrement nomor urut
     const { count, error: countError } = await supabase
       .from('problem')
       .select('*', { count: 'exact', head: true })
@@ -99,25 +94,21 @@ export async function submitTicketData(formData: FormData) {
 
     if (countError) throw countError;
 
-    // d. Susun nomor urut baru (padEnd/padStart 4 digit)
     const nextSequence = (count || 0) + 1;
     const sequenceString = nextSequence.toString().padStart(4, '0');
-
-    // e. Hasil akhir format nomor tiket
     const ticketNo = `${branchCode}-${year2Digit}-${sequenceString}`;
-    // =========================================================================
 
-    // 4. Masukkan Data ke tabel `problem`
+    // 2. Insert Problem
     const { data: problem, error: problemError } = await supabase
       .from('problem')
       .insert({
-        ticket_no: ticketNo, // Sekarang bernilai format baru (misal: KPD-26-0001)
+        ticket_no: ticketNo,
         title: title,
         description: description,
         priority: 'MEDIUM',
         status: isAdmin ? 'ASSIGNED' : 'OPEN', 
         created_by: userId,
-        affected_branch_id: affectedBranchId, // Nilai 3 aman tersimpan
+        affected_branch_id: affectedBranchId,
         approved_by: isAdmin ? userId : null, 
       })
       .select()
@@ -125,11 +116,14 @@ export async function submitTicketData(formData: FormData) {
 
     if (problemError) throw problemError;
 
-    // 5. Masukkan data ke `problem_eng` jika Admin
+    // 3. Handle Engineer Assignment & Email Notifications
     if (isAdmin && engineerIds.length > 0) {
-      const engInsertData = engineerIds.map((id) => ({
+      const numericEngIds = engineerIds.map(id => parseInt(id));
+      
+      // a. Insert ke tabel problem_eng
+      const engInsertData = numericEngIds.map((id) => ({
         problem_id: problem.id,
-        engineer_id: parseInt(id),
+        engineer_id: id,
         assigned_by: userId,
       }));
 
@@ -138,9 +132,33 @@ export async function submitTicketData(formData: FormData) {
         .insert(engInsertData);
 
       if (engError) throw engError;
+
+      // =========================================================================
+      // BARU: AMBIL DATA EMAIL ENGINEER DAN KIRIM NOTIFIKASI
+      // =========================================================================
+      const { data: engineersToNotify, error: fetchEngError } = await supabase
+        .from('user')
+        .select('name, email')
+        .in('id', numericEngIds);
+
+      if (!fetchEngError && engineersToNotify) {
+        // Kirim email ke masing-masing engineer secara paralel (non-blocking yang berat)
+        await Promise.allSettled(
+          engineersToNotify.map(eng => 
+            sendTicketAssignmentEmail(
+              eng.email, 
+              eng.name, 
+              ticketNo, 
+              title, 
+              description
+            )
+          )
+        );
+      }
+      // =========================================================================
     }
 
-    // 6. Handle Upload Lampiran (Maksimal 3 file)
+    // 4. Handle Upload Lampiran
     const files = formData.getAll('files') as File[];
     if (files.length > 3) {
       return { error: 'Maksimal file yang diizinkan hanya 3.' };
@@ -169,7 +187,7 @@ export async function submitTicketData(formData: FormData) {
       }
     }
 
-    return { success: true, message: 'Tiket berhasil dibuat!' };
+    return { success: true, message: 'Tiket berhasil dibuat & notifikasi terkirim!' };
 
   } catch (error: any) {
     console.error("DEBUG ERROR:", error);

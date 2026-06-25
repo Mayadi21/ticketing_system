@@ -10,6 +10,8 @@ import {
   Menu,
   X
 } from "lucide-react";
+import { logoutUser } from '@/app/actions/auth'; 
+
 
 export default function BranchLayout({
   children,
@@ -75,11 +77,16 @@ export default function BranchLayout({
 
         {/* Bottom Navigation */}
         <div className="p-4 border-t border-white/10">
-          <button
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-colors">
-            <LogOut size={18} />
-            <span>Logout</span>
-          </button>
+          {/* Membungkus tombol dengan form untuk memanggil Server Action logoutUser */}
+          <form action={logoutUser}>
+            <button
+              type="submit"
+              className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-colors"
+            >
+              <LogOut size={18} />
+              <span>Logout</span>
+            </button>
+          </form>
         </div>
       </aside>
 

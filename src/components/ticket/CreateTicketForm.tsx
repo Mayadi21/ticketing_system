@@ -1,15 +1,35 @@
 'use client';
 
 import { useState } from 'react';
-import { X, CloudUpload, ChevronDown, FileText } from 'lucide-react'; // Ditambahkan FileText untuk estetika list file
+import { X, CloudUpload, ChevronDown, FileText } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { submitTicketData } from '@/app/actions/ticket'; 
 
-interface CreateTicketFormProps {
-    role: 'admin' | 'branch';
+export interface BranchData {
+    id: number;
+    branch_name: string;
+    branch_code: string;
 }
 
-export default function CreateTicketForm({ role }: CreateTicketFormProps) {
+export interface EngineerData {
+    id: number;
+    name: string;
+    role: string;
+}
+
+interface CreateTicketFormProps {
+    role: 'admin' | 'branch';
+    branches?: BranchData[];   // Tambahkan '?' agar opsional untuk branch
+    engineers?: EngineerData[]; // Tambahkan '?' agar opsional untuk branch
+}
+
+// Berikan default value [] agar map() tidak error jika undefined
+export default function CreateTicketForm({ 
+    role, 
+    branches = [], 
+    engineers = [] 
+}: CreateTicketFormProps) {
+
     const router = useRouter();
     const [isDragging, setIsDragging] = useState(false);
     const [isLoading, setIsLoading] = useState(false); 
@@ -20,22 +40,19 @@ export default function CreateTicketForm({ role }: CreateTicketFormProps) {
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const incomingFiles = Array.from(e.target.files);
-            
-            // Logika: menggabungkan file lama + baru agar user bisa mencicil upload
             const totalFiles = [...selectedFiles, ...incomingFiles];
 
             if (totalFiles.length > 3) {
                 alert("Maksimal hanya 3 file yang bisa diupload!");
-                e.target.value = ""; // Reset input element
+                e.target.value = ""; 
                 return;
             }
 
             setSelectedFiles(totalFiles);
-            e.target.value = ""; // Reset input agar user bisa pilih file yang sama lagi jika sempat dihapus
+            e.target.value = ""; 
         }
     };
 
-    // Fungsi menghapus file secara spesifik
     const removeFile = (indexToRemove: number) => {
         setSelectedFiles(prev => prev.filter((_, index) => index !== indexToRemove));
     };
@@ -54,25 +71,18 @@ export default function CreateTicketForm({ role }: CreateTicketFormProps) {
         isAttachmentRequired: !isAdmin,
     };
 
-    // Eksekusi Submit dengan manipulasi FormData manual agar file di state sinkron ke Backend
     const handleFormSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         
-        // Validasi required file di sisi client (karena manual, required native input dilepas)
         if (config.isAttachmentRequired && selectedFiles.length === 0) {
             alert("Minimal harus mengupload 1 file lampiran!");
             return;
         }
 
         setIsLoading(true);
-        
-        // Ambil data form yang ada
         const formData = new FormData(e.currentTarget);
-        
-        // Hapus key 'files' bawaan input HTML agar tidak bentrok
         formData.delete('files');
         
-        // Masukkan file dari state React secara akurat (maksimal 3)
         selectedFiles.forEach((file) => {
             formData.append('files', file);
         });
@@ -106,11 +116,11 @@ export default function CreateTicketForm({ role }: CreateTicketFormProps) {
                     </button>
                 </div>
 
-                {/* Gunakan onSubmit manual agar sinkronisasi file aman */}
                 <form onSubmit={handleFormSubmit} className="px-6 py-5 md:px-8 md:py-6 space-y-6">
 
                     {isAdmin && (
                         <div className="flex flex-col space-y-6">
+                            {/* --- DYNAMIC BRANCHES DROPDOWN --- */}
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-2">
                                     Bank Cabang <span className="text-red-500">*</span>
@@ -123,8 +133,11 @@ export default function CreateTicketForm({ role }: CreateTicketFormProps) {
                                         className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-slate-900 bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm cursor-pointer"
                                     >
                                         <option value="" disabled>Select a branch...</option>
-                                        <option value="2">KC Koordinator Pematang Siantar</option>
-                                        <option value="1">Kantor Pusat Medan</option>
+                                        {branches.map((branch) => (
+                                            <option key={branch.id} value={branch.id}>
+                                                {branch.branch_name} ({branch.branch_code})
+                                            </option>
+                                        ))}
                                     </select>
                                     <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
                                         <ChevronDown size={18} />
@@ -132,42 +145,37 @@ export default function CreateTicketForm({ role }: CreateTicketFormProps) {
                                 </div>
                             </div>
 
+                            {/* --- DYNAMIC ENGINEERS CHECKBOX --- */}
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-2">
                                     Assigned Engineer(s) <span className="text-red-500">*</span>
                                 </label>
                                 <div className="border border-slate-300 rounded-lg p-1.5 max-h-32 overflow-y-auto bg-white">
-                                    <label className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 rounded-md cursor-pointer transition-colors border-b border-slate-100 last:border-0">
-                                        <input
-                                            type="checkbox"
-                                            name="engineer_ids"
-                                            value="3"
-                                            className="w-4 h-4 text-primary bg-white border-slate-300 rounded focus:ring-primary"
-                                        />
-                                        <div className="flex flex-col">
-                                            <span className="text-sm font-semibold text-slate-700">Jesica</span>
-                                            <span className="text-xs text-slate-500">IT Support</span>
-                                        </div>
-                                    </label>
-
-                                    <label className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 rounded-md cursor-pointer transition-colors border-b border-slate-100 last:border-0">
-                                        <input
-                                            type="checkbox"
-                                            name="engineer_ids"
-                                            value="4"
-                                            className="w-4 h-4 text-primary bg-white border-slate-300 rounded focus:ring-primary"
-                                        />
-                                        <div className="flex flex-col">
-                                            <span className="text-sm font-semibold text-slate-700">Putra Silalahi</span>
-                                            <span className="text-xs text-slate-500">Network Engineer</span>
-                                        </div>
-                                    </label>
+                                    {engineers.length > 0 ? (
+                                        engineers.map((eng) => (
+                                            <label key={eng.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 rounded-md cursor-pointer transition-colors border-b border-slate-100 last:border-0">
+                                                <input
+                                                    type="checkbox"
+                                                    name="engineer_ids"
+                                                    value={eng.id}
+                                                    className="w-4 h-4 text-primary bg-white border-slate-300 rounded focus:ring-primary"
+                                                />
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-semibold text-slate-700">{eng.name}</span>
+                                                    <span className="text-xs text-slate-500">IT Engineer</span>
+                                                </div>
+                                            </label>
+                                        ))
+                                    ) : (
+                                        <div className="p-3 text-sm text-slate-500 text-center">No engineers available.</div>
+                                    )}
                                 </div>
                                 <p className="text-xs text-slate-500 mt-1.5">You can select more than one engineer.</p>
                             </div>
                         </div>
                     )}
 
+                    {/* FIELD LAINNYA TETAP SAMA */}
                     <div>
                         <label className="block text-sm font-bold text-slate-700 mb-2">
                             Issue Title <span className="text-red-500">*</span>
@@ -204,16 +212,9 @@ export default function CreateTicketForm({ role }: CreateTicketFormProps) {
                             )}
                         </label>
 
-                        {/* Kotak Dropzone */}
                         <div
-                            className={`
-                            relative flex flex-col items-center justify-center w-full px-6 py-8 md:py-10 
-                            border-2 border-dashed rounded-xl cursor-pointer transition-all duration-200 ease-in-out
-                            ${isDragging
-                                    ? 'border-primary bg-primary/5'
-                                    : 'border-slate-300 bg-slate-50/50 hover:bg-slate-50 hover:border-primary/50'
-                                }
-                            `}
+                            className={`relative flex flex-col items-center justify-center w-full px-6 py-8 md:py-10 border-2 border-dashed rounded-xl cursor-pointer transition-all duration-200 ease-in-out
+                            ${isDragging ? 'border-primary bg-primary/5' : 'border-slate-300 bg-slate-50/50 hover:bg-slate-50 hover:border-primary/50'}`}
                             onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                             onDragLeave={() => setIsDragging(false)}
                             onDrop={(e) => { 
@@ -230,7 +231,6 @@ export default function CreateTicketForm({ role }: CreateTicketFormProps) {
                                 }
                             }}
                         >
-                            {/* Note: attribute required dilepas karena di-handle oleh onSubmit state */}
                             <input
                                 type="file"
                                 name="files"
@@ -238,7 +238,6 @@ export default function CreateTicketForm({ role }: CreateTicketFormProps) {
                                 multiple
                                 onChange={handleFileChange}
                             />
-
                             <CloudUpload size={36} strokeWidth={1.5} className={`mb-3 transition-colors ${isDragging ? 'text-primary' : 'text-slate-400'}`} />
                             <p className="text-sm md:text-base text-slate-600 mb-1 text-center">
                                 <span className="font-bold text-primary">Click to upload</span> or drag and drop
@@ -246,7 +245,6 @@ export default function CreateTicketForm({ role }: CreateTicketFormProps) {
                             <p className="text-xs text-slate-400 text-center">SVG, PNG, JPG or PDF (max. 3 files, max. 10MB per file)</p>
                         </div>
 
-                        {/* Menampilkan daftar file + Tombol Delete individual */}
                         {selectedFiles.length > 0 && (
                             <div className="mt-4">
                                 <p className="text-sm font-semibold text-slate-700 mb-2">Selected files ({selectedFiles.length}/3):</p>
@@ -255,14 +253,10 @@ export default function CreateTicketForm({ role }: CreateTicketFormProps) {
                                         <li key={index} className="flex items-center justify-between p-3 text-sm bg-slate-50 border border-slate-200 rounded-lg">
                                             <div className="flex items-center min-w-0 mr-4">
                                                 <FileText size={18} className="text-slate-400 mr-2 flex-shrink-0" />
-                                                <span className="truncate font-medium text-slate-700">
-                                                    {file.name}
-                                                </span>
+                                                <span className="truncate font-medium text-slate-700">{file.name}</span>
                                             </div>
                                             <div className="flex items-center gap-3 whitespace-nowrap">
-                                                <span className="text-xs text-slate-500">
-                                                    {(file.size / 1024 / 1024).toFixed(2)} MB
-                                                </span>
+                                                <span className="text-xs text-slate-500">{(file.size / 1024 / 1024).toFixed(2)} MB</span>
                                                 <button
                                                     type="button"
                                                     onClick={() => removeFile(index)}
@@ -290,8 +284,7 @@ export default function CreateTicketForm({ role }: CreateTicketFormProps) {
                         <button
                             type="submit"
                             disabled={isLoading}
-                            className={`w-full sm:w-auto px-6 py-2.5 rounded-lg font-semibold text-white shadow-sm transition-colors ${isLoading ? 'bg-slate-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-dark'
-                                }`}
+                            className={`w-full sm:w-auto px-6 py-2.5 rounded-lg font-semibold text-white shadow-sm transition-colors ${isLoading ? 'bg-slate-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-dark'}`}
                         >
                             {isLoading ? 'Processing...' : config.submitText}
                         </button>

@@ -28,7 +28,7 @@ export default function AdminTicketQueuePage() {
       branch: 'Downtown Metro', 
       issue: 'ATM #4 Cash Dispenser Jar', 
       date: 'Oct 24, 09:15 AM', 
-      engineer: 'Sarah Jenkins', 
+      engineer: 'Sarah Jenkins and 1 more', 
       status: 'In Progress', 
       badgeBg: 'bg-amber-100 text-amber-700', 
       dotBg: 'bg-amber-500' 
@@ -58,7 +58,7 @@ export default function AdminTicketQueuePage() {
       branch: 'South End Corporate', 
       issue: 'Vault Door Sensor Malfuncti', 
       date: 'Oct 23, 14:10 PM', 
-      engineer: 'David Torres', 
+      engineer: 'David Torres and 2 more', 
       status: 'In Progress', 
       badgeBg: 'bg-amber-100 text-amber-700', 
       dotBg: 'bg-amber-500' 
