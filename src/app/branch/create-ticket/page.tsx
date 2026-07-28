@@ -1,11 +1,9 @@
-import CreateTicketForm from '@/components/ticket/CreateTicketForm'; // Sesuaikan path-nya
+// src/app/branch/create-ticket/page.tsx
 
-
+import BranchCreateTicketForm from '@/components/ticket/BranchCreateTicketForm'; 
 
 export default function BranchNewTicketPage() {
-    // Karena role = "branch", form akan otomatis menyembunyikan 
-    // dropdown cabang & engineer sesuai logika (isAdmin) di dalam komponen
     return (
-        <CreateTicketForm role="branch" />
+        <BranchCreateTicketForm />
     );
 }

@@ -1,182 +1,192 @@
-'use client';
+// src/app/admin/dashboard/page.tsx
 
-import {
-  Ticket,
-  Hourglass,
-  UserCog,
-  CheckCircle2,
-  TrendingUp,
-  ArrowRight
-} from "lucide-react";
+import { createClient } from "@/utils/supabase/server";
+import DashboardUI, { DashboardData } from "./DashboardUI";
+import { formatDateToWIB, getShortDayNameWIB } from "@/utils/date";
 
-export default function AdminDashboard() {
-  return (
-    <div className="max-w-7xl mx-auto space-y-8">
+export default async function AdminDashboardPage() {
+  const supabase = await createClient();
 
-      {/* GREETING (Gaya visual Branch, Teks Admin) */}
-      <section>
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900">
-            Admin John Doe
-          </h1>
-          <p className="text-slate-500 mt-2">
-            System overview and real-time metrics.
-          </p>
-          <p className="text-sm text-slate-400 mt-1">
-            Bank Sumut Pusat (HO Helpdesk)
-          </p>
-        </div>
-      </section>
+  // ====================================================
+  // USER
+  // ====================================================
 
-      {/* KPI CARDS (Fitur Admin, Gaya Visual Branch) */}
-      <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        
-        {/* Total Tickets */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Total Tickets</p>
-              <h3 className="text-4xl font-bold text-slate-900 mt-3">1,248</h3>
-              <div className="mt-3 flex items-center gap-1.5 text-xs">
-                <TrendingUp size={14} className="text-blue-600" />
-                <span className="text-blue-600 font-semibold">+12%</span>
-                <span className="text-slate-400">from yesterday</span>
-              </div>
-            </div>
-            <div className="bg-blue-50 text-blue-600 p-4 rounded-xl">
-              <Ticket size={24} />
-            </div>
-          </div>
-        </div>
+  let adminName = "Admin";
 
-        {/* Pending Approval */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Pending Approval</p>
-              <h3 className="text-4xl font-bold text-slate-900 mt-3">84</h3>
-              <div className="mt-3 flex items-center gap-1.5 text-xs">
-                <span className="text-orange-600 font-semibold">12</span>
-                <span className="text-slate-400">require urgent attention</span>
-              </div>
-            </div>
-            <div className="bg-orange-50 text-orange-600 p-4 rounded-xl">
-              <Hourglass size={24} />
-            </div>
-          </div>
-        </div>
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-        {/* In-Progress Issue */}
-        <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">In-Progress Issue</p>
-              <h3 className="text-4xl font-bold text-slate-900 mt-3">32</h3>
-              <div className="mt-3 flex items-center gap-1.5 text-xs">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                <span className="text-slate-400">40 assigned engineers</span>
-              </div>
-            </div>
-            <div className="bg-purple-50 text-purple-600 p-4 rounded-xl">
-              <UserCog size={24} />
-            </div>
-          </div>
-        </div>
-      </section>
+  if (user?.email) {
+    const { data: userData } = await supabase
+      .from("user")
+      .select("name")
+      .eq("email", user.email)
+      .single();
 
-      {/* MAIN GRID (Fitur Admin: Chart & Activity, Gaya Visual Branch: rounded-2xl) */}
-      <section className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+    if (userData) {
+      adminName = userData.name;
+    }
+  }
 
-        {/* LEFT PANEL: CHART */}
-        <div className="xl:col-span-2 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col p-6">
-          <div className="flex items-center justify-between mb-8 border-b border-slate-100 pb-5">
-            <h3 className="text-lg font-semibold text-slate-900">Ticket Volume Trends</h3>
-            <div className="flex bg-slate-50 border border-slate-200 rounded-lg p-1">
-              <button className="px-4 py-1.5 text-xs font-semibold bg-white text-primary rounded-md shadow-sm border border-slate-200">Day</button>
-              <button className="px-4 py-1.5 text-xs font-medium text-slate-500 hover:text-slate-700">Week</button>
-            </div>
-          </div>
+  // ====================================================
+  // DATE RANGE
+  // ====================================================
 
-          {/* CSS Bar Chart Simulation */}
-          <div className="flex-1 flex flex-col justify-end relative h-64">
-            {/* Garis batas bawah grafik */}
-            <div className="absolute bottom-0 left-0 w-full border-b border-slate-200"></div>
-            
-            <div className="flex items-end justify-between w-full h-full px-2 md:px-8 relative z-10 gap-2 md:gap-6">
-              <div className="w-full bg-blue-100 hover:bg-blue-200 transition-colors rounded-t-md h-[20%] group relative"></div>
-              <div className="w-full bg-blue-100 hover:bg-blue-200 transition-colors rounded-t-md h-[40%] group relative"></div>
-              <div className="w-full bg-blue-100 hover:bg-blue-200 transition-colors rounded-t-md h-[35%] group relative"></div>
-              <div className="w-full bg-blue-100 hover:bg-blue-200 transition-colors rounded-t-md h-[60%] group relative"></div>
-              <div className="w-full bg-blue-200 hover:bg-blue-300 transition-colors rounded-t-md h-[85%] group relative"></div>
-              <div className="w-full bg-blue-100 hover:bg-blue-200 transition-colors rounded-t-md h-[45%] group relative"></div>
-              <div className="w-full bg-blue-100 hover:bg-blue-200 transition-colors rounded-t-md h-[30%] group relative"></div>
-            </div>
-          </div>
-          
-          {/* Label Hari */}
-          <div className="flex justify-between px-2 md:px-8 mt-4 text-xs font-medium text-slate-500">
-            <span className="w-full text-center">Mon</span>
-            <span className="w-full text-center">Tue</span>
-            <span className="w-full text-center">Wed</span>
-            <span className="w-full text-center">Thu</span>
-            <span className="w-full text-center">Fri</span>
-            <span className="w-full text-center">Sat</span>
-            <span className="w-full text-center">Sun</span>
-          </div>
-        </div>
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
 
-        {/* RIGHT PANEL: RECENT ACTIVITY */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-          <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="text-lg font-semibold text-slate-900">Recent Activity</h3>
-            <button className="text-primary text-sm font-medium flex items-center gap-1 hover:underline">
-              View All <ArrowRight size={16} />
-            </button>
-          </div>
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(today.getDate() - 6);
+  sevenDaysAgo.setHours(0, 0, 0, 0);
 
-          <div className="p-6 space-y-6">
-            {/* Activity 1 - Resolved */}
-            <div className="flex gap-4">
-              <div className="shrink-0 mt-0.5">
-                <div className="w-9 h-9 rounded-full bg-[#f0fdf4] flex items-center justify-center border border-green-100 text-green-600">
-                  <CheckCircle2 size={18} />
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-900">#TKT-4921 resolved by J. Doe</p>
-                <p className="text-xs text-slate-500 mt-1">2 mins ago</p>
-              </div>
-            </div>
+// ====================================================
+  // FETCH DATA
+  // ====================================================
 
-            {/* Activity 2 - Started */}
-            <div className="flex gap-4">
-              <div className="shrink-0 mt-0.5">
-                <div className="w-9 h-9 rounded-full bg-[#eff6ff] flex items-center justify-center border border-blue-100 text-blue-500">
-                  <CheckCircle2 size={18} />
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-900">#TKT-4925 started by Brian</p>
-                <p className="text-xs text-slate-500 mt-1">15 mins ago</p>
-              </div>
-            </div>
+  const [
+    { count: totalTickets },
+    { count: pendingApproval },
+    { count: urgentAttention },
+    { count: inProgress },
+    { data: engineersData },
+    { data: recentTickets },
+  ] = await Promise.all([
+    supabase.from("problem").select("*", {
+      count: "exact",
+      head: true,
+    }),
 
-            {/* Activity 3 - Started */}
-            <div className="flex gap-4">
-              <div className="shrink-0 mt-0.5">
-                <div className="w-9 h-9 rounded-full bg-[#eff6ff] flex items-center justify-center border border-blue-100 text-blue-500">
-                  <CheckCircle2 size={18} />
-                </div>
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-slate-900">#TKT-4921 started by J. Doe</p>
-                <p className="text-xs text-slate-500 mt-1">2 hrs ago</p>
-              </div>
-            </div>
-          </div>
-        </div>
+    supabase
+      .from("problem")
+      .select("*", {
+        count: "exact",
+        head: true,
+      })
+      .eq("status", "OPEN"),
 
-      </section>
-    </div>
-  );
+    supabase
+      .from("problem")
+      .select("*", {
+        count: "exact",
+        head: true,
+      })
+      .eq("priority", "HIGH"),
+
+    supabase
+      .from("problem")
+      .select("*", {
+        count: "exact",
+        head: true,
+      })
+      .eq("status", "IN_PROGRESS"),
+
+    // PERBAIKAN DI SINI: Join dengan tabel problem dan filter statusnya
+    supabase
+      .from("problem_eng")
+      .select("engineer_id, problem!inner(status)")
+      .eq("problem.status", "IN_PROGRESS"),
+
+    supabase
+      .from("problem")
+      .select("created_at")
+      .gte("created_at", sevenDaysAgo.toISOString())
+      .order("created_at"),
+  ]);
+
+
+
+  // ====================================================
+  // ENGINEERS
+  // ====================================================
+
+  const assignedEngineers = new Set(
+    engineersData?.map((item) => item.engineer_id)
+  ).size;
+
+  // ====================================================
+  // CHART DATA
+  // ====================================================
+
+  const labels: string[] = [];
+  const dates: string[] = [];
+  const counts = Array(7).fill(0);
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(sevenDaysAgo);
+    d.setDate(sevenDaysAgo.getDate() + i);
+
+    dates.push(formatDateToWIB(d));
+    labels.push(getShortDayNameWIB(d));
+  }
+
+  recentTickets?.forEach((ticket) => {
+    const ticketDateObj = new Date(ticket.created_at);
+    const ticketDate = formatDateToWIB(ticketDateObj);
+
+    const index = dates.indexOf(ticketDate);
+
+    if (index !== -1) {
+      counts[index]++;
+    }
+  });
+
+  // ====================================================
+  // GROWTH
+  // ====================================================
+
+  const todayCount = counts[6];
+  const yesterdayCount = counts[5];
+
+  let ticketsGrowth = 0;
+
+  if (yesterdayCount > 0) {
+    ticketsGrowth = Math.round(
+      ((todayCount - yesterdayCount) / yesterdayCount) * 100
+    );
+  } else if (todayCount > 0) {
+    ticketsGrowth = 100;
+  }
+
+  // ====================================================
+  // NORMALIZE CHART
+  // ====================================================
+
+  const maxVolume = Math.max(...counts, 1);
+
+  const chartData = counts.map((count, index) => ({
+    label: labels[index],
+    volume: count,
+    percentage:
+      count === 0
+        ? 6
+        : Math.max(
+            Math.round((count / maxVolume) * 100),
+            12
+          ),
+  }));
+
+  // ====================================================
+  // DATA
+  // ====================================================
+
+  const dashboardData: DashboardData = {
+    adminName,
+
+    totalTickets: totalTickets ?? 0,
+
+    ticketsGrowth,
+
+    pendingApproval: pendingApproval ?? 0,
+
+    urgentAttention: urgentAttention ?? 0,
+
+    inProgress: inProgress ?? 0,
+
+    assignedEngineers,
+
+    chartData,
+  };
+
+  return <DashboardUI data={dashboardData} />;
 }

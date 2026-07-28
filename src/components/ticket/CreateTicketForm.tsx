@@ -1,9 +1,12 @@
+// src/components/ticket/CreateTicketForm.tsx
+
 'use client';
 
 import { useState } from 'react';
-import { X, CloudUpload, ChevronDown, FileText } from 'lucide-react';
+import { X, CloudUpload, ChevronDown, FileText, Search } from 'lucide-react'; // Tambahkan Search
 import { useRouter } from 'next/navigation';
 import { submitTicketData } from '@/app/actions/ticket'; 
+import toast from 'react-hot-toast';
 
 export interface BranchData {
     id: number;
@@ -19,11 +22,10 @@ export interface EngineerData {
 
 interface CreateTicketFormProps {
     role: 'admin' | 'branch';
-    branches?: BranchData[];   // Tambahkan '?' agar opsional untuk branch
-    engineers?: EngineerData[]; // Tambahkan '?' agar opsional untuk branch
+    branches?: BranchData[];   
+    engineers?: EngineerData[]; 
 }
 
-// Berikan default value [] agar map() tidak error jika undefined
 export default function CreateTicketForm({ 
     role, 
     branches = [], 
@@ -33,6 +35,10 @@ export default function CreateTicketForm({
     const router = useRouter();
     const [isDragging, setIsDragging] = useState(false);
     const [isLoading, setIsLoading] = useState(false); 
+    
+    // State untuk fitur search engineer
+    const [engineerSearch, setEngineerSearch] = useState('');
+    const [branchSearch, setBranchSearch] = useState('');
 
     const isAdmin = role === 'admin';
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -43,7 +49,7 @@ export default function CreateTicketForm({
             const totalFiles = [...selectedFiles, ...incomingFiles];
 
             if (totalFiles.length > 3) {
-                alert("Maksimal hanya 3 file yang bisa diupload!");
+                toast.error("Maksimal hanya 3 file yang bisa diupload!");
                 e.target.value = ""; 
                 return;
             }
@@ -58,13 +64,13 @@ export default function CreateTicketForm({
     };
 
     const config = {
-        title: isAdmin ? 'Create Master Ticket' : 'Create New Ticket',
+        title: isAdmin ? 'Buat Tiket Baru untuk Cabang Bank' : 'Buat Tiket Baru',
         subtitle: isAdmin
-            ? 'Record a new issue and assign it directly to an IT engineer.'
-            : 'Please provide detailed information about your issue.',
+            ? 'Buat tiket baru dan tetapkan langsung ke engineer.'
+            : 'Harap berikan informasi detail tentang masalah Anda.',
         cancelRoute: isAdmin ? '/admin/tickets' : '/branch/dashboard',
         submitRoute: isAdmin ? '/admin/tickets' : '/branch/dashboard',
-        submitText: isAdmin ? 'Create Ticket and Assign' : 'Submit Ticket',
+        submitText: isAdmin ? 'Buat Tiket' : 'Submit Tiket',
         cancelButtonStyle: isAdmin
             ? 'text-slate-600 bg-white border border-slate-300 hover:bg-slate-50'
             : 'text-primary bg-white border border-primary hover:bg-primary/5',
@@ -75,26 +81,40 @@ export default function CreateTicketForm({
         e.preventDefault();
         
         if (config.isAttachmentRequired && selectedFiles.length === 0) {
-            alert("Minimal harus mengupload 1 file lampiran!");
+            toast.error("Minimal harus mengupload 1 file lampiran!");
             return;
         }
 
-        setIsLoading(true);
-        const formData = new FormData(e.currentTarget);
-        formData.delete('files');
-        
-        selectedFiles.forEach((file) => {
-            formData.append('files', file);
-        });
+setIsLoading(true);
+        // Tampilkan toast loading dan simpan referensinya
+        const loadingToast = toast.loading('Memproses tiket Anda...');
 
-        const result = await submitTicketData(formData);
+        try {
+            const formData = new FormData(e.currentTarget);
+            formData.delete('files');
+            
+            selectedFiles.forEach((file) => {
+                formData.append('files', file);
+            });
 
-        if (result.error) {
-            alert(`Gagal membuat tiket: ${result.error}`);
+            const result = await submitTicketData(formData);
+
+            if (result.error) {
+                // 4. GANTI ALERT GAGAL MENJADI TOAST ERROR, buang loading toast
+                toast.error(`Gagal membuat tiket: ${result.error}`, { id: loadingToast });
+                setIsLoading(false);
+            } else {
+                // 5. GANTI ALERT BERHASIL MENJADI TOAST SUCCESS
+                toast.success('Tiket berhasil disubmit!', { id: loadingToast });
+                
+                // Tambahkan sedikit jeda agar user bisa melihat pesan sukses sebelum redirect
+                setTimeout(() => {
+                    router.push(config.submitRoute);
+                }, 1000); 
+            }
+        } catch (error) {
+            toast.error('Terjadi kesalahan pada sistem.', { id: loadingToast });
             setIsLoading(false);
-        } else {
-            alert('Tiket berhasil disubmit!');
-            router.push(config.submitRoute);
         }
     };
 
@@ -126,64 +146,168 @@ export default function CreateTicketForm({
                                     Bank Cabang <span className="text-red-500">*</span>
                                 </label>
                                 <div className="relative">
-                                    <select
-                                        name="affected_branch"
-                                        required
-                                        defaultValue=""
-                                        className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-slate-900 bg-white appearance-none focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm cursor-pointer"
-                                    >
-                                        <option value="" disabled>Select a branch...</option>
-                                        {branches.map((branch) => (
-                                            <option key={branch.id} value={branch.id}>
-                                                {branch.branch_name} ({branch.branch_code})
-                                            </option>
-                                        ))}
-                                    </select>
+                                   <div className="border border-slate-300 rounded-lg overflow-hidden bg-white flex flex-col">
+
+    {/* Search Branch */}
+    <div className="relative border-b border-slate-200 bg-slate-50/50">
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+            <Search size={16} />
+        </div>
+
+        <input
+            type="text"
+            placeholder="Cari nama atau kode cabang..."
+            value={branchSearch}
+            onChange={(e) => setBranchSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2.5 bg-transparent text-sm text-slate-900 focus:outline-none placeholder-slate-400"
+        />
+    </div>
+
+    {/* Branch List */}
+    <div className="max-h-48 overflow-y-auto p-1.5">
+        {branches.length > 0 ? (
+            branches.map((branch) => {
+                const keyword = branchSearch.toLowerCase();
+
+                const isMatch =
+                    branch.branch_name.toLowerCase().includes(keyword) ||
+                    branch.branch_code.toLowerCase().includes(keyword);
+
+                return (
+                    <label
+                        key={branch.id}
+                        className={`items-center gap-3 px-3 py-2.5 hover:bg-slate-50 rounded-md cursor-pointer transition-colors border-b border-slate-100 last:border-0 ${
+                            isMatch ? 'flex' : 'hidden'
+                        }`}
+                    >
+                        <input
+                            type="radio"
+                            name="affected_branch"
+                            value={branch.id}
+                            required
+                            className="w-4 h-4 text-primary border-slate-300 focus:ring-primary"
+                        />
+
+                        <div className="flex flex-col">
+                            <span className="text-sm font-semibold text-slate-700">
+                                {branch.branch_name}
+                            </span>
+                            <span className="text-xs text-slate-500">
+                                {branch.branch_code}
+                            </span>
+                        </div>
+                    </label>
+                );
+            })
+        ) : (
+            <div className="p-3 text-sm text-slate-500 text-center">
+                Tidak ada cabang bank yang tersedia.
+            </div>
+        )}
+
+        {branches.length > 0 &&
+            !branches.some(
+                (branch) =>
+                    branch.branch_name
+                        .toLowerCase()
+                        .includes(branchSearch.toLowerCase()) ||
+                    branch.branch_code
+                        .toLowerCase()
+                        .includes(branchSearch.toLowerCase())
+            ) && (
+                <div className="p-3 text-sm text-slate-500 text-center">
+                    Cabang "{branchSearch}" tidak ditemukan.
+                </div>
+            )}
+    </div>
+</div>
                                     <div className="absolute inset-y-0 right-0 flex items-center pr-4 pointer-events-none text-slate-400">
                                         <ChevronDown size={18} />
                                     </div>
                                 </div>
                             </div>
 
-                            {/* --- DYNAMIC ENGINEERS CHECKBOX --- */}
+                            {/* --- DYNAMIC ENGINEERS CHECKBOX WITH SEARCH --- */}
                             <div>
                                 <label className="block text-sm font-bold text-slate-700 mb-2">
-                                    Assigned Engineer(s) <span className="text-red-500">*</span>
+                                    Engineer ditugaskan <span className="text-red-500">*</span>
                                 </label>
-                                <div className="border border-slate-300 rounded-lg p-1.5 max-h-32 overflow-y-auto bg-white">
-                                    {engineers.length > 0 ? (
-                                        engineers.map((eng) => (
-                                            <label key={eng.id} className="flex items-center gap-3 px-3 py-2.5 hover:bg-slate-50 rounded-md cursor-pointer transition-colors border-b border-slate-100 last:border-0">
-                                                <input
-                                                    type="checkbox"
-                                                    name="engineer_ids"
-                                                    value={eng.id}
-                                                    className="w-4 h-4 text-primary bg-white border-slate-300 rounded focus:ring-primary"
-                                                />
-                                                <div className="flex flex-col">
-                                                    <span className="text-sm font-semibold text-slate-700">{eng.name}</span>
-                                                    <span className="text-xs text-slate-500">IT Engineer</span>
-                                                </div>
-                                            </label>
-                                        ))
-                                    ) : (
-                                        <div className="p-3 text-sm text-slate-500 text-center">No engineers available.</div>
-                                    )}
+                                
+                                <div className="border border-slate-300 rounded-lg overflow-hidden bg-white flex flex-col">
+                                    {/* Kolom Pencarian Engineer */}
+                                    <div className="relative border-b border-slate-200 bg-slate-50/50">
+                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                                            <Search size={16} />
+                                        </div>
+                                        <input
+                                            type="text"
+                                            placeholder="Cari nama engineer..."
+                                            value={engineerSearch}
+                                            onChange={(e) => setEngineerSearch(e.target.value)}
+                                            className="w-full pl-9 pr-4 py-2.5 bg-transparent text-sm text-slate-900 focus:outline-none placeholder-slate-400"
+                                        />
+                                    </div>
+
+                                    {/* Daftar Engineer */}
+                                    <div className="p-1.5 max-h-40 overflow-y-auto">
+                                        {engineers.length > 0 ? (
+                                            engineers.map((eng) => {
+                                                // Cek apakah nama engineer cocok dengan pencarian
+                                                const isMatch = eng.name.toLowerCase().includes(engineerSearch.toLowerCase());
+                                                
+                                                return (
+                                                    <label 
+                                                        key={eng.id} 
+                                                        className={`items-center gap-3 px-3 py-2.5 hover:bg-slate-50 rounded-md cursor-pointer transition-colors border-b border-slate-100 last:border-0 ${isMatch ? 'flex' : 'hidden'}`}
+                                                    >
+                                                        <input
+                                                            type="checkbox"
+                                                            name="engineer_ids"
+                                                            value={eng.id}
+                                                            className="w-4 h-4 text-primary bg-white border-slate-300 rounded focus:ring-primary"
+                                                        />
+                                                        <div className="flex flex-col">
+                                                            <span className="text-sm font-semibold text-slate-700">{eng.name}</span>
+                                                        </div>
+                                                    </label>
+                                                )
+                                            })
+                                        ) : (
+                                            <div className="p-3 text-sm text-slate-500 text-center">Tidak ada engineer yang tersedia.</div>
+                                        )}
+                                        {/* Feedback jika pencarian tidak ditemukan */}
+                                        {engineers.length > 0 && !engineers.some(eng => eng.name.toLowerCase().includes(engineerSearch.toLowerCase())) && (
+                                            <div className="p-3 text-sm text-slate-500 text-center">Engineer "{engineerSearch}" tidak ditemukan.</div>
+                                        )}
+                                    </div>
                                 </div>
-                                <p className="text-xs text-slate-500 mt-1.5">You can select more than one engineer.</p>
+                                <p className="text-xs text-slate-500 mt-1.5">Anda dapat memilih lebih dari satu engineer.</p>
+                            </div>
+
+                            {/* --- TICKET DEADLINE --- */}
+                            <div>
+                                <label className="block text-sm font-bold text-slate-700 mb-2">
+                                    Deadline Penanganan <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="datetime-local"
+                                    name="deadline" 
+                                    required
+                                    className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
+                                />
                             </div>
                         </div>
                     )}
 
-                    {/* FIELD LAINNYA TETAP SAMA */}
+                    {/* FIELD LAINNYA */}
                     <div>
                         <label className="block text-sm font-bold text-slate-700 mb-2">
-                            Issue Title <span className="text-red-500">*</span>
+                            Judul Masalah <span className="text-red-500">*</span>
                         </label>
                         <input
                             type="text"
                             name="title" 
-                            placeholder="Brief summary of the problem"
+                            placeholder="Ringkasan singkat dari masalah"
                             required
                             className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm md:text-base"
                         />
@@ -191,12 +315,12 @@ export default function CreateTicketForm({
 
                     <div>
                         <label className="block text-sm font-bold text-slate-700 mb-2">
-                            Detailed Description <span className="text-red-500">*</span>
+                            Deskripsi Rinci <span className="text-red-500">*</span>
                         </label>
                         <textarea
                             name="description" 
                             rows={4}
-                            placeholder="Please provide steps to reproduce, error messages, or any other relevant details..."
+                            placeholder="Jelaskan masalah secara rinci..."
                             required
                             className="w-full px-4 py-3 border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm md:text-base resize-y"
                         ></textarea>
@@ -204,7 +328,7 @@ export default function CreateTicketForm({
 
                     <div>
                         <label className="block text-sm font-bold text-slate-700 mb-2">
-                            Attachments
+                            Lampiran Masalah
                             {config.isAttachmentRequired ? (
                                 <span className="text-red-500 ml-1">*</span>
                             ) : (
@@ -224,7 +348,7 @@ export default function CreateTicketForm({
                                     const incomingFiles = Array.from(e.dataTransfer.files);
                                     const totalFiles = [...selectedFiles, ...incomingFiles];
                                     if(totalFiles.length > 3) {
-                                        alert("Maksimal hanya 3 file yang bisa diupload!");
+                                        toast.error("Maksimal hanya 3 file yang bisa diupload!");
                                         return;
                                     }
                                     setSelectedFiles(totalFiles);
@@ -242,12 +366,12 @@ export default function CreateTicketForm({
                             <p className="text-sm md:text-base text-slate-600 mb-1 text-center">
                                 <span className="font-bold text-primary">Click to upload</span> or drag and drop
                             </p>
-                            <p className="text-xs text-slate-400 text-center">SVG, PNG, JPG or PDF (max. 3 files, max. 10MB per file)</p>
+                            <p className="text-xs text-slate-400 text-center">PNG, JPG or PDF (max. 3 file, max. 5MB per file)</p>
                         </div>
 
                         {selectedFiles.length > 0 && (
                             <div className="mt-4">
-                                <p className="text-sm font-semibold text-slate-700 mb-2">Selected files ({selectedFiles.length}/3):</p>
+                                <p className="text-sm font-semibold text-slate-700 mb-2">File dilampirkan ({selectedFiles.length}/3):</p>
                                 <ul className="space-y-2">
                                     {selectedFiles.map((file, index) => (
                                         <li key={index} className="flex items-center justify-between p-3 text-sm bg-slate-50 border border-slate-200 rounded-lg">
@@ -279,14 +403,14 @@ export default function CreateTicketForm({
                             onClick={() => router.push(config.cancelRoute)}
                             className={`w-full sm:w-auto px-6 py-2.5 rounded-lg font-semibold transition-colors ${config.cancelButtonStyle}`}
                         >
-                            Cancel
+                            Batal
                         </button>
                         <button
                             type="submit"
                             disabled={isLoading}
                             className={`w-full sm:w-auto px-6 py-2.5 rounded-lg font-semibold text-white shadow-sm transition-colors ${isLoading ? 'bg-slate-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-dark'}`}
                         >
-                            {isLoading ? 'Processing...' : config.submitText}
+                            {isLoading ? 'Memproses...' : config.submitText}
                         </button>
                     </div>
 

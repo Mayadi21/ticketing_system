@@ -1,3 +1,5 @@
+// src/app/admin/create-ticket/page.tsx
+
 import CreateTicketForm from '@/components/ticket/CreateTicketForm';
 import { getTicketMetadata } from '@/app/actions/ticket';
 

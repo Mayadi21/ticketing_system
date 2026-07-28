@@ -19,17 +19,10 @@ export async function loginUser(formData: FormData) {
   // 2. Cari user berdasarkan email
   const { data: user, error } = await supabase
     .from('user')
-    .select('*')
+    .select('id, name, password, role, branch_id, image')
     .eq('email', email)
     .single();
   
-  console.log("================================");
-console.log("Email Input:", email);
-console.log("User Found:", user);
-console.log("Supabase Error:", error);
-console.log("Stored Password:", user?.password);
-console.log("================================");
-
   if (error || !user) {
     return { error: 'Email tidak terdaftar atau salah.' };
   }
@@ -49,7 +42,8 @@ console.log("================================");
     id: user.id,
     role: user.role,
     name: user.name,
-    branch_id: user.branch_id
+    branch_id: user.branch_id,
+    image: user.image
   };
 
   cookieStore.set('ticketing_session', JSON.stringify(sessionData), {
@@ -72,4 +66,28 @@ export async function logoutUser() {
   
   // Arahkan kembali ke halaman login (root)
   redirect('/');
+}
+
+export async function getCurrentUser() {
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get('ticketing_session');
+    
+    if (!sessionCookie) return null;
+    
+    const session = JSON.parse(sessionCookie.value);
+    const supabase = await createClient();
+
+    // Query ke tabel 'user' berdasarkan ID yang ada di session
+    const { data: user, error } = await supabase
+        .from('user')
+        .select('name, role, image, branch:branch_id ( branch_name )')
+        .eq('id', session.id)
+        .single();
+
+    if (error || !user) {
+        console.error('Error fetching current user:', error);
+        return null;
+    }
+
+    return user;
 }

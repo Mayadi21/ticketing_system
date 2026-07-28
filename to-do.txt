@@ -1,0 +1,10 @@
+// di halaman detail tiket admin, priority dan deadline dua kali ditampilkan
+// di halaman detail tiket admin, tangal 2 deadline yang duplikat bisa berbeda ? 
+// di halaman detail tiket admin, kalau engineer udah ditugaskan semua, tombol tambah engineer matikan aja
+
+di halaman daftar ticket engineer, hilangkan button create new ticket
+
+---
+
+// BUAT HALAMAN DASHBOARD ADMIN DAN BRANCH
+BUAT LOG DAN ACTIVITY
