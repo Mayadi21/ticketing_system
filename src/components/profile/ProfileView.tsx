@@ -51,10 +51,7 @@ export default function ProfileView({ userData }: ProfileViewProps) {
               <div className="h-20 w-20 rounded-full bg-white p-1 -mt-10 mb-3 shadow-sm border border-slate-100">
                 <img
                   src={
-                    userData.image ??
-                    `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodeURIComponent(
-                      userData.full_name
-                    )}`
+                    userData.image ?? '/profile_placeholder.png'
                   }
                   alt={userData.full_name}
                   className="h-full w-full rounded-full object-cover border border-slate-200 bg-slate-50"

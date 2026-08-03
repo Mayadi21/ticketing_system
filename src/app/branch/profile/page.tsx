@@ -1,18 +1,18 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
-import { createClient } from '@/utils/supabase/server';
+import { db } from '@/lib/db';
 import ProfileView, { UserProfileData } from '@/components/profile/ProfileView';
 
 interface SessionData {
-  id: string;
+  id: number | string;
 }
 
-export default async function AdminProfilePage() {
+export default async function BranchProfilePage() {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get('ticketing_session')?.value;
 
   if (!sessionCookie) {
-    redirect('/'); 
+    redirect('/');
   }
 
   let sessionData: SessionData;
@@ -22,18 +22,14 @@ export default async function AdminProfilePage() {
     redirect('/');
   }
 
-  const supabase = await createClient();
+  const userData = await db.user.findUnique({
+    where: { id: BigInt(sessionData.id) },
+    include: {
+      branch: { select: { branch_name: true } },
+    },
+  });
 
-  const { data: userData, error: userError } = await supabase
-    .from('user')
-    .select(`
-      *,
-      branch:branch_id (branch_name)
-    `)
-    .eq('id', sessionData.id)
-    .single();
-
-  if (userError || !userData) {
+  if (!userData) {
     return (
       <div className="p-8 text-center text-red-600">
         Gagal memuat data profil. Silakan coba login kembali.
@@ -41,22 +37,23 @@ export default async function AdminProfilePage() {
     );
   }
 
-  // Pemetaan data: Hapus fallback string agar jika kosong, nilainya menjadi null
-const combinedUserData: UserProfileData = {
-  id: userData.id,
-  email: userData.email,
-  employee_id: userData.id,
-  full_name: userData.name,
-  phone: userData.phone || "-",
-  role: userData.role,
+  const imagePath = userData.image
+    ? (userData.image.startsWith('http') || userData.image.startsWith('/')
+        ? userData.image
+        : `/attachments/${userData.image}`)
+    : null;
 
-  image: userData.image
-    ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/attachments/${userData.image}`
-    : null,
-
-  branch_name: (userData.branch as any)?.branch_name || null,
-  location: userData.location || null,
-};
+  const combinedUserData: UserProfileData = {
+    id: userData.id.toString(),
+    email: userData.email,
+    employee_id: userData.id.toString(),
+    full_name: userData.name,
+    phone: userData.phone || "-",
+    role: userData.role,
+    image: imagePath,
+    branch_name: userData.branch?.branch_name || null,
+    location: null,
+  };
 
   return <ProfileView userData={combinedUserData} />;
-}
+}

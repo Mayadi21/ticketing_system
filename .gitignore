@@ -31,7 +31,8 @@ yarn-error.log*
 .pnpm-debug.log*
 
 # env files (can opt-in for committing if needed)
-.env*
+.env
+.env.local
 
 # vercel
 .vercel
@@ -43,3 +44,8 @@ next-env.d.ts
 # coding agents
 AGENTS.md
 CLAUDE.md
+/src/generated/prisma
+
+# file upload oleh user selama development
+public/attachments
+

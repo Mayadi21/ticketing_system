@@ -1,0 +1,83 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model branch {
+  id          BigInt    @id @default(autoincrement())
+  branch_name String    @db.VarChar(255)
+  address     String    @db.VarChar(255)
+  city_prov   String    @db.VarChar(64)
+  phone       String?   @db.VarChar(20)
+  zip_code    String?   @db.Char(5)
+  branch_code String    @unique @db.Char(3)
+  problem     problem[]
+  user        user[]
+}
+
+model problem {
+  id                             BigInt                @id @default(autoincrement())
+  created_by                     BigInt
+  approved_by                    BigInt?
+  affected_branch_id             BigInt
+  ticket_no                      String                @unique @db.VarChar(11)
+  title                          String                @db.VarChar(255)
+  priority                       String                @default("LOW") @db.VarChar(50)
+  status                         String                @default("OPEN") @db.VarChar(50)
+  description                    String
+  solution_note                  String?
+  created_at                     DateTime              @default(now())
+  updated_at                     DateTime
+  deadline                       DateTime?
+  branch                         branch                @relation(fields: [affected_branch_id], references: [id])
+  user_problem_approved_byTouser user?                 @relation("problem_approved_byTouser", fields: [approved_by], references: [id])
+  user_problem_created_byTouser  user                  @relation("problem_created_byTouser", fields: [created_by], references: [id])
+  problem_attachment             problem_attachment[]
+  problem_eng                    problem_eng[]
+  solution_attachment            solution_attachment[]
+}
+
+model problem_attachment {
+  id         BigInt  @id @default(autoincrement())
+  problem_id BigInt
+  file_path  String  @db.VarChar(500)
+  problem    problem @relation(fields: [problem_id], references: [id], onDelete: Cascade)
+}
+
+model problem_eng {
+  id                                 BigInt   @id @default(autoincrement())
+  problem_id                         BigInt
+  engineer_id                        BigInt
+  assigned_at                        DateTime @default(now())
+  assigned_by                        BigInt
+  user_problem_eng_assigned_byTouser user     @relation("problem_eng_assigned_byTouser", fields: [assigned_by], references: [id])
+  user_problem_eng_engineer_idTouser user     @relation("problem_eng_engineer_idTouser", fields: [engineer_id], references: [id])
+  problem                            problem  @relation(fields: [problem_id], references: [id], onDelete: Cascade)
+}
+
+model solution_attachment {
+  id         BigInt  @id @default(autoincrement())
+  problem_id BigInt
+  file_path  String  @db.VarChar(500)
+  problem    problem @relation(fields: [problem_id], references: [id], onDelete: Cascade)
+}
+
+model user {
+  id                                        BigInt        @id @default(autoincrement())
+  branch_id                                 BigInt?
+  name                                      String        @db.VarChar(255)
+  email                                     String        @unique @db.VarChar(255)
+  password                                  String        @db.VarChar(255)
+  role                                      String        @db.VarChar(50)
+  image                                     String?       @db.VarChar(255)
+  phone                                     String?       @db.VarChar(20)
+  problem_problem_approved_byTouser         problem[]     @relation("problem_approved_byTouser")
+  problem_problem_created_byTouser          problem[]     @relation("problem_created_byTouser")
+  problem_eng_problem_eng_assigned_byTouser problem_eng[] @relation("problem_eng_assigned_byTouser")
+  problem_eng_problem_eng_engineer_idTouser problem_eng[] @relation("problem_eng_engineer_idTouser")
+  branch                                    branch?       @relation(fields: [branch_id], references: [id])
+}

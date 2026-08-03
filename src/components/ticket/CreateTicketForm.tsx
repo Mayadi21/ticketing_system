@@ -42,10 +42,63 @@ export default function CreateTicketForm({
 
     const isAdmin = role === 'admin';
     const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+    const storageUrl = "/attachments";
+
+    // Helper untuk mengambil tanggal & waktu minimal (khusus hari ini minimal jam 17:00)
+    const getMinDateTime = () => {
+        const now = new Date();
+        const today17 = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 17, 0, 0);
+        const minDate = now > today17 ? now : today17;
+        const tzOffset = minDate.getTimezoneOffset() * 60000;
+        return new Date(minDate.getTime() - tzOffset).toISOString().slice(0, 16);
+    };
+
+    const validateDeadlineDate = (deadlineStr: string): string | null => {
+        if (!deadlineStr) return "Deadline wajib diisi!";
+        const selected = new Date(deadlineStr);
+        const now = new Date();
+
+        const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+        const startOfSelectedDay = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate(), 0, 0, 0);
+
+        if (startOfSelectedDay < startOfToday) {
+            return "Deadline penanganan tidak boleh pada tanggal yang telah lalu!";
+        }
+
+        if (startOfSelectedDay.getTime() === startOfToday.getTime()) {
+            const today17 = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 17, 0, 0);
+            if (now > today17) {
+                if (selected < now) {
+                    return "Deadline penanganan untuk hari ini tidak boleh kurang dari waktu saat ini!";
+                }
+            } else {
+                if (selected < today17) {
+                    return "Khusus untuk hari ini, deadline penanganan minimal jam 17:00!";
+                }
+            }
+        }
+
+        return null;
+    };
+
+    const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx', 'txt', 'rtf', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg'];
+
+    const isAllowedFile = (file: File) => {
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        return ext ? ALLOWED_EXTENSIONS.includes(ext) : false;
+    };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const incomingFiles = Array.from(e.target.files);
+
+            const invalidFiles = incomingFiles.filter(f => !isAllowedFile(f));
+            if (invalidFiles.length > 0) {
+                toast.error("Hanya file PDF, Docs (.doc/.docx/.txt), dan Gambar yang diperbolehkan!");
+                e.target.value = "";
+                return;
+            }
+
             const totalFiles = [...selectedFiles, ...incomingFiles];
 
             if (totalFiles.length > 3) {
@@ -91,6 +144,17 @@ setIsLoading(true);
 
         try {
             const formData = new FormData(e.currentTarget);
+
+            if (isAdmin) {
+                const deadlineVal = formData.get('deadline') as string;
+                const deadlineError = validateDeadlineDate(deadlineVal);
+                if (deadlineError) {
+                    toast.error(deadlineError, { id: loadingToast });
+                    setIsLoading(false);
+                    return;
+                }
+            }
+
             formData.delete('files');
             
             selectedFiles.forEach((file) => {
@@ -293,6 +357,7 @@ setIsLoading(true);
                                     type="datetime-local"
                                     name="deadline" 
                                     required
+                                    min={getMinDateTime()}
                                     className="w-full px-4 py-2.5 border border-slate-300 rounded-lg text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all text-sm"
                                 />
                             </div>
@@ -346,6 +411,13 @@ setIsLoading(true);
                                 setIsDragging(false); 
                                 if(e.dataTransfer.files) {
                                     const incomingFiles = Array.from(e.dataTransfer.files);
+
+                                    const invalidFiles = incomingFiles.filter(f => !isAllowedFile(f));
+                                    if (invalidFiles.length > 0) {
+                                        toast.error("Hanya file PDF, Docs (.doc/.docx/.txt), dan Gambar yang diperbolehkan!");
+                                        return;
+                                    }
+
                                     const totalFiles = [...selectedFiles, ...incomingFiles];
                                     if(totalFiles.length > 3) {
                                         toast.error("Maksimal hanya 3 file yang bisa diupload!");
@@ -358,6 +430,7 @@ setIsLoading(true);
                             <input
                                 type="file"
                                 name="files"
+                                accept=".pdf,.doc,.docx,.txt,.rtf,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                 multiple
                                 onChange={handleFileChange}
@@ -366,7 +439,7 @@ setIsLoading(true);
                             <p className="text-sm md:text-base text-slate-600 mb-1 text-center">
                                 <span className="font-bold text-primary">Click to upload</span> or drag and drop
                             </p>
-                            <p className="text-xs text-slate-400 text-center">PNG, JPG or PDF (max. 3 file, max. 5MB per file)</p>
+                            <p className="text-xs text-slate-400 text-center">PDF, DOC, DOCX, TXT, & Gambar (max. 3 file, max. 5MB per file)</p>
                         </div>
 
                         {selectedFiles.length > 0 && (

@@ -1,68 +1,77 @@
 // src/app/engineer/tickets/[id]/page.tsx
-import { createClient } from '@supabase/supabase-js'; // Sesuaikan dengan setup utilitas Supabase Anda
+import { db } from '@/lib/db';
 import TicketDetail from './TicketDetailEngineer';
 
 interface PageProps {
   params: Promise<{ id: string }>;
 }
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 export default async function EngineerTicketDetailPage({ params }: PageProps) {
   const resolvedParams = await params;
   const ticketId = resolvedParams.id;
 
-  // 1. Jalankan kueri tunggal ke View PostgreSQL
-  const { data: ticket, error: ticketError } = await supabase
-    .from('v_problem_detail')
-    .select('*')
-    .eq('id', ticketId)
-    .single();
+  try {
+    const ticket = await db.problem.findUnique({
+      where: { id: BigInt(ticketId) },
+      include: {
+        branch: true,
+        user_problem_created_byTouser: true,
+        problem_attachment: true,
+        solution_attachment: true,
+        problem_eng: {
+          include: {
+            user_problem_eng_engineer_idTouser: true,
+          },
+        },
+      },
+    });
 
-  if (ticketError || !ticket) {
-    console.error('Error fetching ticket:', ticketError);
+    if (!ticket) {
+      return (
+        <div className="flex min-h-screen items-center justify-center text-slate-500 font-sans">
+          Tiket tidak ditemukan.
+        </div>
+      );
+    }
+
+    const mappedTicketData = {
+      id: ticket.id.toString(),
+      ticketNumber: ticket.ticket_no,
+      title: ticket.title,
+      description: ticket.description,
+      status: ticket.status,
+      priority: ticket.priority,
+      deadline: ticket.deadline ? ticket.deadline.toISOString() : null,
+      reportedBy: ticket.user_problem_created_byTouser?.name || 'Sistem',
+      branchLocation: ticket.branch
+        ? `${ticket.branch.branch_name || ''} - ${ticket.branch.city_prov || ''}`.trim()
+        : 'Tidak Diketahui',
+      createdAt: ticket.created_at.toISOString(),
+
+      attachments: (ticket.problem_attachment || []).map((att) => ({
+        id: att.id.toString(),
+        url: att.file_path.startsWith('http') || att.file_path.startsWith('/') ? att.file_path : `/attachments/${att.file_path}`,
+      })),
+
+      solutionNote: ticket.solution_note || null,
+      solutionAttachments: (ticket.solution_attachment || []).map((att) => ({
+        id: att.id.toString(),
+        url: att.file_path.startsWith('http') || att.file_path.startsWith('/') ? att.file_path : `/attachments/${att.file_path}`,
+      })),
+
+      assignedEngineers: (ticket.problem_eng || []).map((eng) => ({
+        id: eng.user_problem_eng_engineer_idTouser.id.toString(),
+        name: eng.user_problem_eng_engineer_idTouser.name,
+      })),
+    };
+
+    return <TicketDetail ticketData={mappedTicketData} />;
+  } catch (error) {
+    console.error('Error fetching engineer ticket detail:', error);
     return (
       <div className="flex min-h-screen items-center justify-center text-slate-500 font-sans">
-        Tiket tidak ditemukan atau terjadi kesalahan jaringan.
+        Gagal memuat detail tiket.
       </div>
     );
   }
-
-  // 2. Transformasi data dari View ke properti yang dibutuhkan UI
-  const mappedTicketData = {
-    id: ticket.id,
-    ticketNumber: ticket.ticket_no,
-    title: ticket.title,
-    description: ticket.description,
-    status: ticket.status,
-    priority: ticket.priority,
-    deadline: ticket.deadline,
-    reportedBy: ticket.creator_name || 'Sistem',
-    branchLocation: `${ticket.branch_name || ''} - ${ticket.city_prov || ''}`.trim(),
-    createdAt: ticket.created_at,
-
-    // Mengambil data lampiran masalah dari agregasi JSON di View
-    attachments: (ticket.problem_attachments || []).map((att: any) => ({
-      id: att.id,
-      url: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/attachments/${att.file_path}`
-    })),
-
-    // PENAMBAHAN: Mengambil catatan solusi dan lampiran solusi
-    solutionNote: ticket.solution_note || null,
-    solutionAttachments: (ticket.solution_attachments || []).map((att: any) => ({
-      id: att.id,
-      url: `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/attachments/${att.file_path}`
-    })),
-
-    // Mengambil engineer yang ditugaskan langsung dari agregasi JSON di View
-    assignedEngineers: (ticket.engineers || []).map((eng: any) => ({
-      id: eng.engineer_id,
-      name: eng.name
-    }))
-  };
-
-  // 3. Kirim data ke komponen TicketDetail tanpa properti engineerOptions
-  return <TicketDetail ticketData={mappedTicketData} />;
-}
+}

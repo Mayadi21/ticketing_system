@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, User, Calendar, MapPin, FileText, Info, ShieldAlert, Save, UserPlus, CheckCircle2, Clock } from 'lucide-react';
+import { ArrowLeft, User, Calendar, MapPin, FileText, Info, ShieldAlert, Save, UserPlus, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 import { Toast } from 'react-hot-toast';
 
 // IMPORT SERVER ACTIONS (Tambahkan closeTicket)
@@ -32,6 +32,7 @@ export default function TicketDetail({ ticketData, engineerOptions }: TicketDeta
   const originallyAssignedIds = ticketData.assignedEngineers?.map((e: any) => String(e.id)) || [];
   const [selectedEngineers, setSelectedEngineers] = useState<string[]>(originallyAssignedIds);
   const [loading, setLoading] = useState(false);
+  const [showCloseModal, setShowCloseModal] = useState(false);
 
   const isOpen = status === 'OPEN';
   const isAssigned = status === 'ASSIGNED';
@@ -48,9 +49,46 @@ export default function TicketDetail({ ticketData, engineerOptions }: TicketDeta
     }
   };
 
+  const getMinDeadlineDateTime = () => {
+    const now = new Date();
+    const today17 = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 17, 0, 0);
+    const minDate = now > today17 ? now : today17;
+    const tzOffset = minDate.getTimezoneOffset() * 60000;
+    return new Date(minDate.getTime() - tzOffset).toISOString().slice(0, 16);
+  };
+
+  const validateDeadlineDate = (deadlineStr: string): string | null => {
+    if (!deadlineStr) return "Harap tentukan deadline penugasan terlebih dahulu!";
+    const selected = new Date(deadlineStr);
+    const now = new Date();
+
+    const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+    const startOfSelectedDay = new Date(selected.getFullYear(), selected.getMonth(), selected.getDate(), 0, 0, 0);
+
+    if (startOfSelectedDay < startOfToday) {
+      return "Deadline penanganan tidak boleh pada tanggal yang telah lalu!";
+    }
+
+    if (startOfSelectedDay.getTime() === startOfToday.getTime()) {
+      const today17 = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 17, 0, 0);
+      if (now > today17) {
+        if (selected < now) {
+          return "Deadline penanganan untuk hari ini tidak boleh kurang dari waktu saat ini!";
+        }
+      } else {
+        if (selected < today17) {
+          return "Khusus untuk hari ini, deadline penanganan minimal jam 17:00!";
+        }
+      }
+    }
+
+    return null;
+  };
+
   const handleSetAndAssign = async () => {
-    if (!deadline) {
-      toast.error('Harap tentukan deadline penugasan terlebih dahulu!');
+    const deadlineError = validateDeadlineDate(deadline);
+    if (deadlineError) {
+      toast.error(deadlineError);
       return;
     }
 
@@ -97,8 +135,7 @@ export default function TicketDetail({ ticketData, engineerOptions }: TicketDeta
 
   // --- TAMBAHAN AKSI 3: Tutup Tiket ---
   const handleCloseTicket = async () => {
-    const konfirmasi = confirm('Apakah Anda yakin ingin menutup tiket ini secara permanen?');
-    if (!konfirmasi) return;
+    setShowCloseModal(false);
 
     setLoading(true);
     try {
@@ -133,7 +170,7 @@ export default function TicketDetail({ ticketData, engineerOptions }: TicketDeta
               <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${status === 'OPEN'
                 ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
                 : status === 'RESOLVED'
-                  ? 'bg-amber-100 text-amber-700 border-amber-200'
+                  ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
                   : status === 'CLOSED'
                     ? 'bg-gray-100 text-gray-700 border-gray-300'
                     : 'bg-blue-100 text-blue-700 border-blue-200'
@@ -166,7 +203,7 @@ export default function TicketDetail({ ticketData, engineerOptions }: TicketDeta
                     className={`px-3 py-1 rounded-full text-xs font-semibold border ${status === 'OPEN'
                       ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
                       : status === 'RESOLVED'
-                        ? 'bg-amber-100 text-amber-700 border-amber-200'
+                        ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
                         : status === 'CLOSED'
                           ? 'bg-gray-100 text-gray-700 border-gray-300'
                           : 'bg-blue-100 text-blue-700 border-blue-200'
@@ -226,50 +263,50 @@ export default function TicketDetail({ ticketData, engineerOptions }: TicketDeta
                 </div>
 
                 {/* ATTACHMENTS */}
-{ticketData.attachments?.length > 0 && (
-  <div className="mt-8">
-    <h3 className="text-sm font-semibold text-slate-900 mb-4">
-      Lampiran Masalah
-    </h3>
+                {ticketData.attachments?.length > 0 && (
+                  <div className="mt-8">
+                    <h3 className="text-sm font-semibold text-slate-900 mb-4">
+                      Lampiran Masalah
+                    </h3>
 
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-      {ticketData.attachments.map((att: any) => {
-        // Deteksi apakah ekstensi file adalah PDF
-        const isPdf = att.url?.toLowerCase().includes('.pdf');
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {ticketData.attachments.map((att: any) => {
+                        // Deteksi apakah ekstensi file adalah PDF
+                        const isPdf = att.url?.toLowerCase().includes('.pdf');
 
-        return (
-          <a
-            key={att.id}
-            href={att.url}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group block"
-          >
-            <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm relative h-44 bg-slate-50 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
-              {isPdf ? (
-                // Tampilan Khusus PDF
-                <div className="flex flex-col items-center justify-center gap-2 text-slate-400 group-hover:text-blue-500 transition-colors z-10">
-                  <FileText size={48} strokeWidth={1.5} />
-                  <span className="text-xs font-semibold">Lihat PDF</span>
-                </div>
-              ) : (
-                // Tampilan Gambar
-                <img
-                  src={att.url}
-                  alt="Attachment"
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
-              )}
-              
-              {/* Efek overlay transparan agar transisi hover lebih halus */}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors z-20 pointer-events-none"></div>
-            </div>
-          </a>
-        );
-      })}
-    </div>
-  </div>
-)}
+                        return (
+                          <a
+                            key={att.id}
+                            href={att.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="group block"
+                          >
+                            <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm relative h-44 bg-slate-50 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+                              {isPdf ? (
+                                // Tampilan Khusus PDF
+                                <div className="flex flex-col items-center justify-center gap-2 text-slate-400 group-hover:text-blue-500 transition-colors z-10">
+                                  <FileText size={48} strokeWidth={1.5} />
+                                  <span className="text-xs font-semibold">Lihat PDF</span>
+                                </div>
+                              ) : (
+                                // Tampilan Gambar
+                                <img
+                                  src={att.url}
+                                  alt="Attachment"
+                                  className="absolute inset-0 h-full w-full object-cover"
+                                />
+                              )}
+
+                              {/* Efek overlay transparan agar transisi hover lebih halus */}
+                              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors z-20 pointer-events-none"></div>
+                            </div>
+                          </a>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
 
                 {/* --- SOLUTION DETAILS --- */}
                 {(status === 'RESOLVED' || status === 'CLOSED') && (
@@ -289,49 +326,49 @@ export default function TicketDetail({ ticketData, engineerOptions }: TicketDeta
                     )}
 
                     {/* Solution Attachments */}
-{ticketData.solution_attachments?.length > 0 && (
-  <div>
-    <h3 className="text-sm font-semibold text-slate-900 mb-4">
-      Lampiran Solusi
-    </h3>
-    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-      {ticketData.solution_attachments.map((att: any) => {
-        // Deteksi apakah file berekstensi PDF menggunakan file_path
-        const isPdf = att.file_path?.toLowerCase().includes('.pdf');
+                    {ticketData.solution_attachments?.length > 0 && (
+                      <div>
+                        <h3 className="text-sm font-semibold text-slate-900 mb-4">
+                          Lampiran Solusi
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          {ticketData.solution_attachments.map((att: any) => {
+                            // Deteksi apakah file berekstensi PDF menggunakan file_path
+                            const isPdf = att.file_path?.toLowerCase().includes('.pdf');
 
-        return (
-          <a
-            key={att.id}
-            href={att.file_path}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="group block"
-          >
-            <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm relative h-44 bg-slate-50 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
-              {isPdf ? (
-                // Tampilan Khusus PDF
-                <div className="flex flex-col items-center justify-center gap-2 text-slate-400 group-hover:text-emerald-500 transition-colors z-10">
-                  <FileText size={48} strokeWidth={1.5} />
-                  <span className="text-xs font-semibold">Lihat PDF</span>
-                </div>
-              ) : (
-                // Tampilan Gambar
-                <img
-                  src={att.file_path}
-                  alt="Solution Attachment"
-                  className="absolute inset-0 h-full w-full object-cover"
-                />
-              )}
-              
-              {/* Efek overlay transparan */}
-              <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors z-20 pointer-events-none"></div>
-            </div>
-          </a>
-        );
-      })}
-    </div>
-  </div>
-)}
+                            return (
+                              <a
+                                key={att.id}
+                                href={att.file_path}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="group block"
+                              >
+                                <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm relative h-44 bg-slate-50 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
+                                  {isPdf ? (
+                                    // Tampilan Khusus PDF
+                                    <div className="flex flex-col items-center justify-center gap-2 text-slate-400 group-hover:text-emerald-500 transition-colors z-10">
+                                      <FileText size={48} strokeWidth={1.5} />
+                                      <span className="text-xs font-semibold">Lihat PDF</span>
+                                    </div>
+                                  ) : (
+                                    // Tampilan Gambar
+                                    <img
+                                      src={att.file_path}
+                                      alt="Solution Attachment"
+                                      className="absolute inset-0 h-full w-full object-cover"
+                                    />
+                                  )}
+
+                                  {/* Efek overlay transparan */}
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors z-20 pointer-events-none"></div>
+                                </div>
+                              </a>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -361,10 +398,10 @@ export default function TicketDetail({ ticketData, engineerOptions }: TicketDeta
 
                   <div className="flex items-center justify-between">
                     <span className="text-xs text-slate-500 font-medium">Deadline:</span>
-                 <span className="text-xs font-medium text-slate-900 flex items-center gap-1.5">
-    <Clock size={12} className="text-slate-500" />
-    {ticketData.deadline ? formatLongDateTimeWIB(ticketData.deadline) : 'belum ditentukan'} {/* <-- Hilangkan new Date() */}
-  </span>
+                    <span className="text-xs font-medium text-slate-900 flex items-center gap-1.5">
+                      <Clock size={12} className="text-slate-500" />
+                      {ticketData.deadline ? formatLongDateTimeWIB(ticketData.deadline) : 'belum ditentukan'} {/* <-- Hilangkan new Date() */}
+                    </span>
                   </div>
                 </div>
 
@@ -392,6 +429,7 @@ export default function TicketDetail({ ticketData, engineerOptions }: TicketDeta
                         type="datetime-local"
                         disabled={loading || isAssigned}
                         value={deadline}
+                        min={getMinDeadlineDateTime()}
                         onChange={(e) => setDeadline(e.target.value)}
                         className={`w-full bg-white border border-slate-300 text-slate-900 text-xs rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-shadow ${isAssigned ? 'opacity-60 cursor-not-allowed bg-slate-50' : ''
                           }`}
@@ -407,8 +445,8 @@ export default function TicketDetail({ ticketData, engineerOptions }: TicketDeta
                     </div>
                     <button
                       disabled={loading}
-                      onClick={handleCloseTicket}
-                      className="w-full flex items-center justify-center gap-2 bg-slate-950 hover:bg-slate-800 text-white text-xs font-semibold py-2.5 rounded-lg transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
+                      onClick={() => setShowCloseModal(true)}
+                      className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary/90 text-white text-xs font-semibold py-2.5 rounded-lg transition-colors shadow-sm disabled:opacity-70 disabled:cursor-not-allowed"
                     >
                       <CheckCircle2 size={14} />
                       {loading ? 'Menutup...' : 'Tutup Tiket'}
@@ -516,6 +554,38 @@ export default function TicketDetail({ ticketData, engineerOptions }: TicketDeta
           </div>
         </div>
       </div>
+
+      {/* MODAL KONFIRMASI TUTUP TIKET */}
+      {showCloseModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-sm w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-amber-600">
+              <AlertTriangle size={24} className="flex-shrink-0" />
+              <h3 className="text-lg font-bold text-slate-900">Konfirmasi Penutupan Tiket</h3>
+            </div>
+            <p className="text-xs md:text-sm text-slate-600 leading-relaxed">
+              Apakah Anda yakin ingin menutup tiket ini secara permanen?
+            </p>
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowCloseModal(false)}
+                className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                disabled={loading}
+                onClick={handleCloseTicket}
+                className="px-4 py-2 text-xs font-semibold text-white bg-primary hover:bg-primary/90 rounded-lg transition-colors shadow-sm disabled:opacity-50"
+              >
+                {loading ? 'Memproses...' : 'Ya, Tutup Tiket'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

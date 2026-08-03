@@ -1,32 +1,19 @@
 // src/app/admin/dashboard/page.tsx
 
-import { createClient } from "@/utils/supabase/server";
+import { db } from "@/lib/db";
+import { getCurrentUser } from "@/app/actions/auth";
 import DashboardUI, { DashboardData } from "./DashboardUI";
 import { formatDateToWIB, getShortDayNameWIB } from "@/utils/date";
 
 export default async function AdminDashboardPage() {
-  const supabase = await createClient();
-
   // ====================================================
   // USER
   // ====================================================
 
   let adminName = "Admin";
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (user?.email) {
-    const { data: userData } = await supabase
-      .from("user")
-      .select("name")
-      .eq("email", user.email)
-      .single();
-
-    if (userData) {
-      adminName = userData.name;
-    }
+  const currentUser = await getCurrentUser();
+  if (currentUser?.name) {
+    adminName = currentUser.name;
   }
 
   // ====================================================
@@ -40,68 +27,64 @@ export default async function AdminDashboardPage() {
   sevenDaysAgo.setDate(today.getDate() - 6);
   sevenDaysAgo.setHours(0, 0, 0, 0);
 
-// ====================================================
+  // ====================================================
   // FETCH DATA
   // ====================================================
 
   const [
-    { count: totalTickets },
-    { count: pendingApproval },
-    { count: urgentAttention },
-    { count: inProgress },
-    { data: engineersData },
-    { data: recentTickets },
+    totalTickets,
+    pendingApproval,
+    urgentAttention,
+    inProgress,
+    engineersData,
+    recentTickets,
   ] = await Promise.all([
-    supabase.from("problem").select("*", {
-      count: "exact",
-      head: true,
+    db.problem.count(),
+
+    db.problem.count({
+      where: { status: "OPEN" },
     }),
 
-    supabase
-      .from("problem")
-      .select("*", {
-        count: "exact",
-        head: true,
-      })
-      .eq("status", "OPEN"),
+    db.problem.count({
+      where: { priority: "HIGH" },
+    }),
 
-    supabase
-      .from("problem")
-      .select("*", {
-        count: "exact",
-        head: true,
-      })
-      .eq("priority", "HIGH"),
+    db.problem.count({
+      where: { status: "IN_PROGRESS" },
+    }),
 
-    supabase
-      .from("problem")
-      .select("*", {
-        count: "exact",
-        head: true,
-      })
-      .eq("status", "IN_PROGRESS"),
+    db.problem_eng.findMany({
+      where: {
+        problem: {
+          status: "IN_PROGRESS",
+        },
+      },
+      select: {
+        engineer_id: true,
+      },
+    }),
 
-    // PERBAIKAN DI SINI: Join dengan tabel problem dan filter statusnya
-    supabase
-      .from("problem_eng")
-      .select("engineer_id, problem!inner(status)")
-      .eq("problem.status", "IN_PROGRESS"),
-
-    supabase
-      .from("problem")
-      .select("created_at")
-      .gte("created_at", sevenDaysAgo.toISOString())
-      .order("created_at"),
+    db.problem.findMany({
+      where: {
+        created_at: {
+          gte: sevenDaysAgo,
+        },
+      },
+      select: {
+        created_at: true,
+      },
+      orderBy: {
+        created_at: "asc",
+      },
+    }),
   ]);
-
-
 
   // ====================================================
   // ENGINEERS
   // ====================================================
 
   const assignedEngineers = new Set(
-    engineersData?.map((item) => item.engineer_id)
+    engineersData.map((item) => item.engineer_id.toString())
   ).size;
 
   // ====================================================
@@ -120,7 +103,7 @@ export default async function AdminDashboardPage() {
     labels.push(getShortDayNameWIB(d));
   }
 
-  recentTickets?.forEach((ticket) => {
+  recentTickets.forEach((ticket) => {
     const ticketDateObj = new Date(ticket.created_at);
     const ticketDate = formatDateToWIB(ticketDateObj);
 
@@ -172,21 +155,14 @@ export default async function AdminDashboardPage() {
 
   const dashboardData: DashboardData = {
     adminName,
-
     totalTickets: totalTickets ?? 0,
-
     ticketsGrowth,
-
     pendingApproval: pendingApproval ?? 0,
-
     urgentAttention: urgentAttention ?? 0,
-
     inProgress: inProgress ?? 0,
-
     assignedEngineers,
-
     chartData,
   };
 
   return <DashboardUI data={dashboardData} />;
-}
+}

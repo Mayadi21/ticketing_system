@@ -1,10 +1,8 @@
 import { cookies } from 'next/headers';
-import { createClient } from '@/utils/supabase/server';
+import { db } from '@/lib/db';
 import EngineerTicketTable, { Ticket } from '@/components/ticket/engineer/EngineerTicketTable';
 
 export default async function EngineerTicketQueuePage() {
-    const supabase = await createClient();
-
     const cookieStore = await cookies();
     const sessionCookie = cookieStore.get('ticketing_session');
 
@@ -17,31 +15,37 @@ export default async function EngineerTicketQueuePage() {
     }
 
     const session = JSON.parse(sessionCookie.value);
-    const currentEngineerId = session.engineer_id || session.id; 
+    const currentEngineerId = BigInt(session.engineer_id || session.id);
 
-    // `created_at` dihapus dari query select Supabase karena pengurutan dilakukan penuh lewat deadline di client-side
-    const { data: tickets, error } = await supabase
-    .from('problem')
-    .select(`
-        id,
-        ticket_no,
-        title,
-        status,
-        priority,
-        deadline,
-        branch:affected_branch_id ( branch_name ),
-        problem_eng!inner (
-            engineer_id,
-            assigned_at
-        )
-    `)
-    .eq('problem_eng.engineer_id', currentEngineerId)
-    .order('assigned_at', {
-        foreignTable: 'problem_eng',
-        ascending: false
-    });
+    try {
+        const problemEngList = await db.problem_eng.findMany({
+            where: { engineer_id: currentEngineerId },
+            include: {
+                problem: {
+                    include: {
+                        branch: { select: { branch_name: true } },
+                    },
+                },
+            },
+            orderBy: { assigned_at: 'desc' },
+        });
 
-    if (error) {
+        const formattedTickets: Ticket[] = problemEngList.map((pe) => ({
+            id: Number(pe.problem.id),
+            ticket_no: pe.problem.ticket_no,
+            title: pe.problem.title,
+            status: pe.problem.status,
+            priority: pe.problem.priority,
+            deadline: pe.problem.deadline ? pe.problem.deadline.toISOString() : undefined,
+            branch: pe.problem.branch ? { branch_name: pe.problem.branch.branch_name } : { branch_name: '-' },
+        }));
+
+        return (
+            <div className="p-4 sm:p-8">
+                <EngineerTicketTable tickets={formattedTickets} />
+            </div>
+        );
+    } catch (error) {
         console.error('Error fetching engineer tickets:', error);
         return (
             <div className="p-6 text-red-500">
@@ -49,21 +53,4 @@ export default async function EngineerTicketQueuePage() {
             </div>
         );
     }
-
-    // Mapping hasil balikan Supabase ke dalam format interface Ticket
-    const formattedTickets: Ticket[] = (tickets ?? []).map((ticket: any) => ({
-        id: ticket.id,
-        ticket_no: ticket.ticket_no,
-        title: ticket.title,
-        status: ticket.status,
-        priority: ticket.priority,
-        deadline: ticket.deadline,
-        branch: Array.isArray(ticket.branch) ? ticket.branch[0] : ticket.branch,
-    }));
-
-    return (
-        <div className="p-4 sm:p-8">
-            <EngineerTicketTable tickets={formattedTickets} />
-        </div>
-    );
-}
+}

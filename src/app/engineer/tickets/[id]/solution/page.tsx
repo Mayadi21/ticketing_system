@@ -29,10 +29,23 @@ export default function TicketSolutionPage({ params }: PageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
+  const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx', 'txt', 'rtf', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg'];
+
   // Handle Input File
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
+      const invalidFiles = newFiles.filter((f) => {
+        const ext = f.name.split('.').pop()?.toLowerCase();
+        return !ext || !ALLOWED_EXTENSIONS.includes(ext);
+      });
+
+      if (invalidFiles.length > 0) {
+        toast.error("Hanya file PDF, Docs (.doc/.docx/.txt), dan Gambar yang diperbolehkan!");
+        e.target.value = "";
+        return;
+      }
+
       setFiles((prev) => [...prev, ...newFiles]);
     }
   };
@@ -124,14 +137,14 @@ router.push('/engineer');
             {/* Attachments */}
             <div className="space-y-2">
               <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
-                <Upload size={16} /> Solution Attachments (Image/PDF)
+                <Upload size={16} /> Solution Attachments (PDF/Docs/Image)
               </label>
               
               <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center hover:border-emerald-400 transition-colors group relative">
                 <input 
                   type="file" 
                   multiple 
-                  accept="image/*,application/pdf"
+                  accept=".pdf,.doc,.docx,.txt,.rtf,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
                   onChange={handleFileChange}
                   className="absolute inset-0 opacity-0 cursor-pointer"
                 />
@@ -139,7 +152,7 @@ router.push('/engineer');
                 <p className="text-sm text-slate-500">
                   <span className="text-emerald-600 font-semibold">Click to upload</span> or drag and drop
                 </p>
-                <p className="text-xs text-slate-400 mt-1">PNG, JPG, or PDF (Max 5MB)</p>
+                <p className="text-xs text-slate-400 mt-1">PDF, DOC, DOCX, TXT, & Gambar (Max 5MB)</p>
               </div>
 
               {/* File List Preview */}

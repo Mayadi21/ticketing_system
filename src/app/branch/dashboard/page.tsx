@@ -1,100 +1,84 @@
 import { cookies } from "next/headers";
-import { createClient } from "@/utils/supabase/server";
+import { db } from "@/lib/db";
 import BranchDashboard from "./BranchDashboard";
 
 export default async function BranchDashboardPage() {
-    const cookieStore = await cookies();
+  const cookieStore = await cookies();
+  const session = cookieStore.get("ticketing_session");
 
-    const session = cookieStore.get("ticketing_session");
+  if (!session) return null;
 
-    if (!session) return null;
+  const sessionData = JSON.parse(session.value);
+  const userId = sessionData.id ? BigInt(sessionData.id) : null;
+  const branchId = sessionData.branch_id ? BigInt(sessionData.branch_id) : null;
 
-    const sessionData = JSON.parse(session.value);
+  if (!userId || !branchId) return null;
 
-    const branchId = sessionData.branch_id;
+  const userData = await db.user.findUnique({
+    where: { id: userId },
+    select: { name: true, branch_id: true, branch: { select: { branch_name: true } } },
+  });
 
-    const supabase = await createClient();
+  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
 
-    // ambil nama user
-const { data: userData } = await supabase
-  .from("user")
-  .select("name, branch_id")
-  .eq("id", sessionData.user_id)
-  .single();
+  const [
+    needApproval,
+    inProgress,
+    resolvedThisMonth,
+    recentTicketsData
+  ] = await Promise.all([
+    db.problem.count({
+      where: {
+        affected_branch_id: branchId,
+        status: "OPEN",
+      },
+    }),
 
-const { data: branchData } = await supabase
-  .from("branch")
-  .select("branch_name")
-  .eq("id", userData?.branch_id)
-  .single();
+    db.problem.count({
+      where: {
+        affected_branch_id: branchId,
+        status: { in: ["ASSIGNED", "IN_PROGRESS"] },
+      },
+    }),
 
-    const [
-        { count: needApproval },
-        { count: inProgress },
-        { count: resolvedThisMonth },
-        { data: recentTickets }
-    ] = await Promise.all([
+    db.problem.count({
+      where: {
+        affected_branch_id: branchId,
+        status: { in: ["RESOLVED", "CLOSED"] },
+        updated_at: { gte: firstDayOfMonth },
+      },
+    }),
 
-        supabase
-            .from("problem")
-            .select("*", {
-                count: "exact",
-                head: true
-            })
-            .eq("affected_branch_id", branchId)
-            .eq("status", "OPEN"),
+    db.problem.findMany({
+      where: { affected_branch_id: branchId },
+      select: {
+        id: true,
+        ticket_no: true,
+        title: true,
+        status: true,
+        created_at: true,
+      },
+      orderBy: { created_at: "desc" },
+      take: 5,
+    }),
+  ]);
 
-        supabase
-            .from("problem")
-            .select("*", {
-                count: "exact",
-                head: true
-            })
-            .eq("affected_branch_id", branchId)
-            .in("status", ["ASSIGNED", "IN_PROGRESS"]),
+  const recentTickets = recentTicketsData.map((t) => ({
+    id: Number(t.id),
+    ticket_no: t.ticket_no,
+    title: t.title,
+    status: t.status,
+    created_at: t.created_at.toISOString(),
+  }));
 
-        supabase
-            .from("problem")
-            .select("*", {
-                count: "exact",
-                head: true
-            })
-            .eq("affected_branch_id", branchId)
-            .in("status", ["RESOLVED", "CLOSED"])
-            .gte(
-                "updated_at",
-                new Date(
-                    new Date().getFullYear(),
-                    new Date().getMonth(),
-                    1
-                ).toISOString()
-            ),
-
-        supabase
-            .from("problem")
-            .select(`
-                id,
-                ticket_no,
-                title,
-                status,
-                created_at
-            `)
-            .eq("affected_branch_id", branchId)
-            .order("created_at", {
-                ascending: false
-            })
-            .limit(5)
-
-    ]);
-
-return (
+  return (
     <BranchDashboard
-        userName={userData?.name ?? ""}
-        branchName={branchData?.branch_name ?? ""}
-        needApproval={needApproval ?? 0}
-        inProgress={inProgress ?? 0}
-        resolvedThisMonth={resolvedThisMonth ?? 0}
-        recentTickets={recentTickets ?? []}
+      userName={userData?.name ?? ""}
+      branchName={userData?.branch?.branch_name ?? ""}
+      needApproval={needApproval}
+      inProgress={inProgress}
+      resolvedThisMonth={resolvedThisMonth}
+      recentTickets={recentTickets}
     />
-);
-}
+  );
+}

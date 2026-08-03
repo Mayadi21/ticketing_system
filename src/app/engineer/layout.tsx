@@ -1,24 +1,30 @@
+// src/app/engineer/layout.tsx
+
 'use client';
 
 import { useState, useEffect } from 'react';
-import { LayoutGrid, LogOut } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { getCurrentUser } from '@/app/actions/auth'; // Import fungsi getCurrentUser
+import {
+    Ticket,
+    User,
+    LogOut,
+    Headset,
+    Menu,
+    X
+} from 'lucide-react';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Toaster } from 'react-hot-toast';
-import { logoutUser } from '@/app/actions/auth';
+import { logoutUser, getCurrentUser } from '@/app/actions/auth';
 
 export default function EngineerLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
-    const router = useRouter();
-
-    // State untuk menyimpan data engineer dari database
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [user, setUser] = useState<{ name: string; role: string; image?: string | null } | null>(null);
+    const pathname = usePathname();
 
-    // Ambil data user saat layout pertama kali dimuat
     useEffect(() => {
         const fetchUser = async () => {
             const userData = await getCurrentUser();
@@ -29,76 +35,149 @@ export default function EngineerLayout({
         fetchUser();
     }, []);
 
-    // Setup URL untuk gambar profile (menangani path Supabase atau URL eksternal)
-    const supabaseStorageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/attachments`;
-
+    const storageUrl = "/attachments";
     const profileImage = user?.image
-        ? (user.image.startsWith('http') ? user.image : `${supabaseStorageUrl}/${user.image}`)
-        : "https://api.dicebear.com/7.x/avataaars/svg?seed=Engineer"; // Fallback default
+        ? (user.image.startsWith('http') || user.image.startsWith('/') ? user.image : `${storageUrl}/${user.image}`)
+        : "/profile_placeholder.png";
+
+    const isActive = (path: string) => {
+        if (path === '/engineer') {
+            return pathname === '/engineer' || pathname === '/engineer/';
+        }
+        return pathname?.includes(path);
+    };
+
+    const navLinkClass = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-xs md:text-sm font-medium";
+    const inactiveLinkClass = "text-white/80 hover:bg-white/10 hover:text-white";
+    const activeLinkClass = "bg-white/20 text-white font-semibold shadow-inner";
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
             <Toaster position="top-center" reverseOrder={false} />
-            {/* TOP NAVIGATION BAR */}
-            <header className="h-16 md:h-20 bg-white border-b border-slate-200 px-4 md:px-8 flex items-center justify-between sticky top-0 z-20 shadow-sm">
-                {/* Left: Titles */}
-                <div className="flex items-center">
-                    <div className="flex items-center gap-3 pr-4 md:pr-6 border-r border-slate-200">
-                        <div className="w-9 h-9 bg-gradient-to-br from-slate-800 to-slate-900 rounded-xl flex items-center justify-center text-white font-extrabold text-lg shadow-inner">
-                            B
-                        </div>
-                        <div className="hidden sm:block">
-                            <h1 className="font-extrabold text-slate-900 text-sm md:text-base tracking-tight">Bank Sumut Support</h1>
-                        </div>
-                    </div>
-                    <div className="pl-4 md:pl-6 flex items-center gap-2">
-                        <LayoutGrid size={18} className="text-primary hidden md:block" />
-                        <h2 className="text-lg md:text-xl font-bold text-slate-700">Engineer Portal</h2>
-                    </div>
-                </div>
 
-                {/* Right: Profile & Logout */}
-                <div className="flex items-center gap-4">
-                    {/* Membungkus Nama dan Gambar dengan Link agar bisa diklik */}
-                    <Link
-                        href="/engineer/profile"
-                        className="flex items-center gap-3 group hover:opacity-80 transition-opacity"
-                    >
-                        <div className="text-right hidden sm:block">
-                            {/* Menampilkan Nama dan Role dari Database */}
-                            <p className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors">
-                                {user ? user.name : 'Loading...'}
-                            </p>
-                            <p className="text-xs font-medium text-slate-500">
-                                {user?.role ? user.role : 'IT Support Team'}
-                            </p>
-                        </div>
-                        <div className="relative">
-                            {/* Menampilkan Gambar dari Database */}
-                            <img
-                                src={profileImage}
-                                alt="Profile"
-                                className="w-9 h-9 md:w-10 md:h-10 rounded-full border-2 border-white shadow-sm bg-slate-100 object-cover"
-                            />
-                            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-green-500 border-2 border-white rounded-full"></span>
-                        </div>
-                    </Link>
+            {/* COMPACT TOP HORIZONTAL NAVIGATION BAR */}
+            <header className="bg-primary text-white shadow-sm sticky top-0 z-50">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex items-center justify-between h-14">
+                        
+                        {/* BRAND LOGO */}
+                        <Link href="/engineer" className="flex items-center gap-2.5 group">
+                            <div className="bg-white/20 p-1.5 rounded-lg text-white shadow-inner group-hover:bg-white/30 transition-colors">
+                                <Headset size={18} />
+                            </div>
+                            <span className="font-bold text-white text-base tracking-tight">Bank Sumut Support</span>
+                        </Link>
 
-                    <div className="h-6 w-px bg-slate-200 mx-1"></div>
-                    <form action={logoutUser}>
+                        {/* DESKTOP NAV LINKS */}
+                        <nav className="hidden md:flex items-center gap-1">
+                            <Link
+                                href="/engineer"
+                                className={`${navLinkClass} ${isActive('/engineer') ? activeLinkClass : inactiveLinkClass}`}
+                            >
+                                <Ticket size={16} />
+                                <span>Tugas Tiket</span>
+                            </Link>
+                            <Link
+                                href="/engineer/profile"
+                                className={`${navLinkClass} ${isActive('/engineer/profile') ? activeLinkClass : inactiveLinkClass}`}
+                            >
+                                <User size={16} />
+                                <span>Profil Saya</span>
+                            </Link>
+                        </nav>
+
+                        {/* USER PROFILE & LOGOUT */}
+                        <div className="hidden md:flex items-center gap-3 border-l border-white/15 pl-3">
+                            <Link href="/engineer/profile" className="flex items-center gap-2.5 group">
+                                <div className="text-right">
+                                    <p className="text-xs font-semibold text-white group-hover:text-white/90 leading-tight">
+                                        {user ? user.name : 'Loading...'}
+                                    </p>
+                                    <p className="text-[10px] text-white/70">
+                                        {user?.role ? user.role : 'IT Support Team'}
+                                    </p>
+                                </div>
+                                <div className="relative">
+                                    <img
+                                        src={profileImage}
+                                        alt="User Avatar"
+                                        className="h-8 w-8 rounded-full border border-white/30 bg-white/10 object-cover"
+                                    />
+                                    <span className="absolute bottom-0 right-0 w-2 h-2 bg-green-400 border border-primary rounded-full"></span>
+                                </div>
+                            </Link>
+
+                            <form action={logoutUser}>
+                                <button
+                                    type="submit"
+                                    className="p-1.5 text-red-300 hover:text-red-100 hover:bg-red-500/20 rounded-lg transition-colors"
+                                    title="Logout"
+                                >
+                                    <LogOut size={16} />
+                                </button>
+                            </form>
+                        </div>
+
+                        {/* MOBILE HAMBURGER BUTTON */}
                         <button
-                            type="submit"
-                            className="text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors p-2"
-                            title="Logout"
+                            className="md:hidden text-white/80 hover:text-white p-1.5 rounded-lg hover:bg-white/10"
+                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                         >
-                            <LogOut size={18} />
+                            {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
                         </button>
-                    </form>
+                    </div>
                 </div>
+
+                {/* MOBILE MENU DRAWER */}
+                {isMobileMenuOpen && (
+                    <div className="md:hidden border-t border-white/15 bg-primary px-4 py-2.5 space-y-2">
+                        <nav className="flex flex-col space-y-1">
+                            <Link
+                                href="/engineer"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className={`${navLinkClass} ${isActive('/engineer') ? activeLinkClass : inactiveLinkClass}`}
+                            >
+                                <Ticket size={16} />
+                                <span>Tugas Tiket</span>
+                            </Link>
+                            <Link
+                                href="/engineer/profile"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className={`${navLinkClass} ${isActive('/engineer/profile') ? activeLinkClass : inactiveLinkClass}`}
+                            >
+                                <User size={16} />
+                                <span>Profil Saya</span>
+                            </Link>
+                        </nav>
+
+                        <div className="pt-2 border-t border-white/15 flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                                <img
+                                    src={profileImage}
+                                    alt="User Avatar"
+                                    className="h-7 w-7 rounded-full border border-white/30 bg-white/10 object-cover"
+                                />
+                                <div>
+                                    <p className="text-xs font-semibold text-white">{user?.name || 'Loading...'}</p>
+                                    <p className="text-[10px] text-white/70">{user?.role || 'IT Support Team'}</p>
+                                </div>
+                            </div>
+                            <form action={logoutUser}>
+                                <button
+                                    type="submit"
+                                    className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-red-500/20 text-red-200 hover:bg-red-500/30 transition-colors"
+                                >
+                                    <LogOut size={13} />
+                                    <span>Logout</span>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                )}
             </header>
 
             {/* MAIN CONTENT AREA */}
-            <main className="flex-1 flex flex-col overflow-hidden p-6 md:p-8">
+            <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6">
                 {children}
             </main>
         </div>

@@ -101,7 +101,7 @@ export default function AdminTicketTable({ tickets }: AdminTicketTableProps) {
     // 3. LOGIKA PAGINATION (MEMOTONG DATA UNTUK HALAMAN SAAT INI)
     const totalItems = processedTickets.length;
     const totalPages = Math.ceil(totalItems / itemsPerPage);
-    
+
     // Potong array berdasarkan halaman aktif
     const paginatedTickets = useMemo(() => {
         const startIndex = (currentPage - 1) * itemsPerPage;
@@ -141,15 +141,6 @@ export default function AdminTicketTable({ tickets }: AdminTicketTableProps) {
             ),
         },
         {
-            header: 'Engineer',
-            cell: (ticket) => {
-                const engineers = ticket.problem_eng && ticket.problem_eng.length > 0
-                    ? ticket.problem_eng.map((eng) => eng.engineer?.name).filter(Boolean).join(', ')
-                    : '-';
-                return <span className="text-slate-700">{engineers}</span>;
-            },
-        },
-        {
             header: 'Status',
             cell: (ticket) => {
                 const status = getStatusStyle(ticket.status);
@@ -164,14 +155,22 @@ export default function AdminTicketTable({ tickets }: AdminTicketTableProps) {
         {
             header: 'Prioritas',
             cell: (ticket) => (
-                <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${
-                    ticket.priority === 'HIGH' ? 'bg-red-50 text-red-700 border-red-200'
-                    : ticket.priority === 'MEDIUM' ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
-                    : 'bg-slate-50 text-slate-700 border-slate-200'
-                }`}>
+                <span className={`px-2.5 py-1 rounded-md text-xs font-bold border ${ticket.priority === 'HIGH' ? 'bg-red-50 text-red-700 border-red-200'
+                        : ticket.priority === 'MEDIUM' ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                            : 'bg-slate-50 text-slate-700 border-slate-200'
+                    }`}>
                     {ticket.priority ?? '-'}
                 </span>
             ),
+        },
+        {
+            header: 'Engineer',
+            cell: (ticket) => {
+                const engineers = ticket.problem_eng && ticket.problem_eng.length > 0
+                    ? ticket.problem_eng.map((eng) => eng.engineer?.name).filter(Boolean).join(', ')
+                    : '-';
+                return <span className="text-slate-700 font-medium">{engineers}</span>;
+            },
         },
     ];
 
@@ -205,12 +204,12 @@ export default function AdminTicketTable({ tickets }: AdminTicketTableProps) {
                 </select>
             </div>
 
-            <div className="relative flex items-center bg-white border border-slate-200 rounded-lg shadow-sm px-3 py-2 hover:bg-slate-50 transition-colors">
-                <ArrowUpDown size={16} className="text-slate-500 mr-2" />
+            <div className="relative flex items-center bg-white border border-slate-200 rounded-lg shadow-sm px-4 py-3 hover:bg-slate-50 transition-colors">
+                <ArrowUpDown size={20} className="text-slate-500 mr-3" />
                 <select
                     value={sortOption}
                     onChange={(e) => setSortOption(e.target.value)}
-                    className="bg-transparent text-sm font-semibold text-slate-700 focus:outline-none cursor-pointer pr-4"
+                    className="bg-transparent text-base font-semibold text-slate-700 focus:outline-none cursor-pointer pr-6"
                 >
                     <option value="newest">Terbaru</option>
                     <option value="oldest">Terlama</option>
@@ -230,7 +229,7 @@ export default function AdminTicketTable({ tickets }: AdminTicketTableProps) {
 
     // 6. OPER DATA YANG SUDAH MATANG KE BASE TABLE
     return (
-        <BaseTable 
+        <BaseTable
             title="Daftar Tiket"
             columns={columns}
             // Kirim data yang sudah di-slice (dipotong) untuk halaman saat ini

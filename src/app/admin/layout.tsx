@@ -1,4 +1,4 @@
-// src/app/layout.tsx
+// src/app/admin/layout.tsx
 
 'use client';
 
@@ -15,22 +15,18 @@ import {
 } from "lucide-react";
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { logoutUser, getCurrentUser } from '@/app/actions/auth'; // Import fungsi getCurrentUser
+import { logoutUser, getCurrentUser } from '@/app/actions/auth';
 import { Toaster } from 'react-hot-toast';
-
 
 export default function AdminLayout({
     children,
 }: {
     children: React.ReactNode;
 }) {
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    
-    // State untuk menyimpan data user dari database (termasuk properti image)
+    const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
     const [user, setUser] = useState<{ name: string; role: string; image?: string | null } | null>(null);
     const pathname = usePathname();
 
-    // Ambil data user langsung dari database saat layout pertama kali dimuat
     useEffect(() => {
         const fetchUser = async () => {
             const userData = await getCurrentUser();
@@ -43,134 +39,164 @@ export default function AdminLayout({
 
     const isActive = (path: string) => pathname?.includes(path);
 
-    const navLinkClass = "flex items-center gap-3 px-4 py-3 rounded-xl transition-colors text-sm";
-    const inactiveLinkClass = "text-white/80 hover:bg-white/5 hover:text-white";
-    const activeLinkClass = "bg-white/10 text-white font-semibold shadow-sm";
+    const navLinkClass = "flex items-center gap-1.5 px-3 py-1.5 rounded-lg transition-all text-xs md:text-sm font-medium";
+    const inactiveLinkClass = "text-white/80 hover:bg-white/10 hover:text-white";
+    const activeLinkClass = "bg-white/20 text-white font-semibold shadow-inner";
 
-    // Buat URL base untuk public storage bucket 'attachments'
-const supabaseStorageUrl = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/attachments`;
+    const storageUrl = "/attachments";
+
     return (
-        
-        <div className="flex h-screen bg-slate-50 overflow-hidden relative">
+        <div className="min-h-screen bg-slate-50 flex flex-col font-sans">
+            <Toaster position="top-center" reverseOrder={false} />
 
-            {/* MOBILE OVERLAY */}
-            {isSidebarOpen && (
-                <div
-                    className="fixed inset-0 bg-black/50 z-40 md:hidden transition-opacity"
-                    onClick={() => setIsSidebarOpen(false)}
-                />
-            )}
+            {/* COMPACT TOP HORIZONTAL NAVIGATION BAR */}
+            <header className="bg-primary text-white shadow-sm sticky top-0 z-50">
+                <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                    <div className="flex items-center justify-between h-14">
+                        
+                        {/* BRAND LOGO */}
+                        <Link href="/admin/dashboard" className="flex items-center gap-2.5 group">
+                            <div className="bg-white/20 p-1.5 rounded-lg text-white shadow-inner group-hover:bg-white/30 transition-colors">
+                                <Headset size={18} />
+                            </div>
+                            <span className="font-bold text-white text-base tracking-tight">SIAP IT</span>
+                        </Link>
 
+                        {/* DESKTOP NAV LINKS */}
+                        <nav className="hidden md:flex items-center gap-1">
+                            <Link href="/admin/dashboard" className={`${navLinkClass} ${isActive('/dashboard') ? activeLinkClass : inactiveLinkClass}`}>
+                                <LayoutDashboard size={16} />
+                                <span>Dashboard</span>
+                            </Link>
+                            <Link href="/admin/tickets" className={`${navLinkClass} ${isActive('/tickets') ? activeLinkClass : inactiveLinkClass}`}>
+                                <Ticket size={16} />
+                                <span>Tiket</span>
+                            </Link>
+                            <Link href="/admin/branches" className={`${navLinkClass} ${isActive('/branches') ? activeLinkClass : inactiveLinkClass}`}>
+                                <Landmark size={16} />
+                                <span>Cabang Bank</span>
+                            </Link>
+                            <Link href="/admin/profile" className={`${navLinkClass} ${isActive('/profile') ? activeLinkClass : inactiveLinkClass}`}>
+                                <User size={16} />
+                                <span>Profil Saya</span>
+                            </Link>
+                        </nav>
 
-            {/* SIDEBAR */}
-            <aside className={`
-                fixed inset-y-0 left-0 z-50 w-72 bg-primary text-white flex flex-col transform transition-transform duration-300 ease-in-out shrink-0
-                md:relative md:translate-x-0
-                ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-            `}>
-                {/* Logo & Mobile Close Button */}
-                <div className="h-16 md:h-20 flex items-center justify-between px-6 border-b border-white/10 shrink-0">
-                    <div className="flex items-center gap-3">
-                        <div className="bg-white/20 p-2 rounded-xl text-white shadow-inner">
-                            <Headset size={22} />
+                        {/* USER PROFILE & LOGOUT */}
+                        <div className="hidden md:flex items-center gap-3 border-l border-white/15 pl-3">
+                            <Link href="/admin/profile" className="flex items-center gap-2.5 group">
+                                <div className="text-right">
+                                    <p className="text-xs font-semibold text-white group-hover:text-white/90 leading-tight">
+                                        {user ? user.name : 'Loading...'}
+                                    </p>
+                                    <p className="text-[10px] text-white/70 capitalize">
+                                        {user ? user.role.toLowerCase() : 'Administrator'}
+                                    </p>
+                                </div>
+                                <img
+                                    src={
+                                        user?.image 
+                                            ? (user.image.startsWith('http') || user.image.startsWith('/') ? user.image : `${storageUrl}/${user.image}`)
+                                            : '/profile_placeholder.png'
+                                    }
+                                    alt="User Avatar"
+                                    className="h-8 w-8 rounded-full border border-white/30 bg-white/10 object-cover"
+                                />
+                            </Link>
+
+                            <form action={logoutUser}>
+                                <button
+                                    type="submit"
+                                    className="p-1.5 text-red-300 hover:text-red-100 hover:bg-red-500/20 rounded-lg transition-colors"
+                                    title="Logout"
+                                >
+                                    <LogOut size={16} />
+                                </button>
+                            </form>
                         </div>
-                        <div>
-                            <h1 className="font-bold text-white text-lg">Ticketing System</h1>
-                            <p className="text-[11px] text-white/70">Bank Sumut</p>
-                        </div>
-                    </div>
 
-                    <button
-                        className="md:hidden text-white/70 hover:text-white p-1 rounded-lg hover:bg-white/10"
-                        onClick={() => setIsSidebarOpen(false)}
-                    >
-                        <X size={24} />
-                    </button>
-                </div>
-
-                {/* Navigation */}
-                <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto">
-                    <Link href="/admin/dashboard" className={`${navLinkClass} ${isActive('/dashboard') ? activeLinkClass : inactiveLinkClass}`}>
-                        <LayoutDashboard size={18} />
-                        <span>Dashboard</span>
-                    </Link>
-                    <Link href="/admin/tickets" className={`${navLinkClass} ${isActive('/tickets') ? activeLinkClass : inactiveLinkClass}`}>
-                        <Ticket size={18} />
-                        <span>Tiket</span>
-                    </Link>
-                    <Link href="/admin/branches" className={`${navLinkClass} ${isActive('/branches') ? activeLinkClass : inactiveLinkClass}`}>
-                        <Landmark size={18} />
-                        <span>Cabang Bank</span>
-                    </Link>
-                    <Link href="/admin/profile" className={`${navLinkClass} ${isActive('/profile') ? activeLinkClass : inactiveLinkClass}`}>
-                        <User size={18} />
-                        <span>Profil Saya</span>
-                    </Link>
-                </nav>
-
-                {/* Bottom Navigation */}
-                <div className="p-4 border-t border-white/10">
-                    <form action={logoutUser}>
+                        {/* MOBILE HAMBURGER BUTTON */}
                         <button
-                            type="submit"
-                            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-red-300 hover:bg-red-500/20 hover:text-red-200 transition-colors">
-                            <LogOut size={18} />
-                            <span>Logout</span>
-                        </button>
-                    </form>
-                </div>
-            </aside>
-
-            {/* MAIN CONTENT */}
-            <main className="flex-1 flex flex-col min-w-0 overflow-hidden relative z-0">
-                <Toaster position="top-center" reverseOrder={false} />
-                {/* HEADER */}
-                <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 shrink-0 relative z-10 shadow-sm">
-
-                    <div className="flex items-center gap-3 relative z-10">
-                        <button
-                            className="md:hidden p-2 -ml-2 text-slate-600 hover:bg-slate-100 rounded-lg"
-                            onClick={() => setIsSidebarOpen(true)}
+                            className="md:hidden text-white/80 hover:text-white p-1.5 rounded-lg hover:bg-white/10"
+                            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
                         >
-                            <Menu size={24} />
+                            {isMobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
                         </button>
+                    </div>
+                </div>
 
-                        <div>
-                            <p className="text-[10px] md:text-xs text-slate-400 hidden sm:block">Admin / Dashboard</p>
-                            <h2 className="font-semibold text-slate-900 text-sm md:text-base">Helpdesk Dashboard</h2>
+                {/* MOBILE MENU DRAWER */}
+                {isMobileMenuOpen && (
+                    <div className="md:hidden border-t border-white/15 bg-primary px-4 py-2.5 space-y-2">
+                        <nav className="flex flex-col space-y-1">
+                            <Link
+                                href="/admin/dashboard"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className={`${navLinkClass} ${isActive('/dashboard') ? activeLinkClass : inactiveLinkClass}`}
+                            >
+                                <LayoutDashboard size={16} />
+                                <span>Dashboard</span>
+                            </Link>
+                            <Link
+                                href="/admin/tickets"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className={`${navLinkClass} ${isActive('/tickets') ? activeLinkClass : inactiveLinkClass}`}
+                            >
+                                <Ticket size={16} />
+                                <span>Tiket</span>
+                            </Link>
+                            <Link
+                                href="/admin/branches"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className={`${navLinkClass} ${isActive('/branches') ? activeLinkClass : inactiveLinkClass}`}
+                            >
+                                <Landmark size={16} />
+                                <span>Cabang Bank</span>
+                            </Link>
+                            <Link
+                                href="/admin/profile"
+                                onClick={() => setIsMobileMenuOpen(false)}
+                                className={`${navLinkClass} ${isActive('/profile') ? activeLinkClass : inactiveLinkClass}`}
+                            >
+                                <User size={16} />
+                                <span>Profil Saya</span>
+                            </Link>
+                        </nav>
+
+                        <div className="pt-2 border-t border-white/15 flex items-center justify-between">
+                            <div className="flex items-center gap-2.5">
+                                <img
+                                    src={
+                                        user?.image 
+                                            ? (user.image.startsWith('http') || user.image.startsWith('/') ? user.image : `${storageUrl}/${user.image}`)
+                                            : '/profile_placeholder.png'
+                                    }
+                                    alt="User Avatar"
+                                    className="h-7 w-7 rounded-full border border-white/30 bg-white/10 object-cover"
+                                />
+                                <div>
+                                    <p className="text-xs font-semibold text-white">{user?.name || 'Loading...'}</p>
+                                    <p className="text-[10px] text-white/70 capitalize">{user?.role?.toLowerCase() || 'Admin'}</p>
+                                </div>
+                            </div>
+                            <form action={logoutUser}>
+                                <button
+                                    type="submit"
+                                    className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-md bg-red-500/20 text-red-200 hover:bg-red-500/30 transition-colors"
+                                >
+                                    <LogOut size={13} />
+                                    <span>Logout</span>
+                                </button>
+                            </form>
                         </div>
                     </div>
+                )}
+            </header>
 
-                    {/* TAMPILAN PROFIL DINAMIS DARI DATABASE */}
-                    <div className="flex items-center gap-3">
-                <div className="text-right hidden sm:block">
-                    <p className="text-sm font-semibold text-slate-900">
-                        {user ? user.name : 'Loading...'}
-                    </p>
-                    <p className="text-xs text-slate-500 capitalize">
-                        {user ? user.role.toLowerCase() : 'Administrator'}
-                    </p>
-                </div>
-                
-                {/* FOTO PROFIL DARI BUCKET SUPABASE */}
-                <img
-                    src={
-                        user?.image 
-                            ? `${supabaseStorageUrl}/${user.image}` 
-                            : `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.name || 'Admin'}`
-                    }
-                    alt="User Avatar"
-                    className="h-8 w-8 md:h-10 md:w-10 rounded-full border border-slate-200 bg-slate-100 object-cover"
-                />
-            </div>
-                </header>
-
-                {/* CONTENT AREA */}
-                <div className="flex-1 overflow-y-auto p-4 md:p-8 relative z-0">
-                    {children}
-                </div>
+            {/* MAIN CONTENT AREA */}
+            <main className="flex-1 max-w-7xl w-full mx-auto p-4 md:p-6">
+                {children}
             </main>
-
         </div>
     );
 }

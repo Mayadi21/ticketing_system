@@ -80,7 +80,11 @@ export default function EngineerTicketTable({ tickets }: EngineerTicketTableProp
     if (!deadline) return 'text-slate-400';
     
     // Jika tiket sudah selesai/ditutup, gunakan warna netral agar tidak terlihat menakutkan (merah)
-    if (status === 'RESOLVED' || status === 'CLOSED') {
+    if (status === 'RESOLVED') {
+        return 'text-slate-500';
+    }
+
+    if (status === 'CLOSED') {
         return 'text-slate-500';
     }
 

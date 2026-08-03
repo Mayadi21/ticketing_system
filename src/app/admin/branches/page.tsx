@@ -1,18 +1,19 @@
-import { createClient } from '@/utils/supabase/server';
+import { db } from '@/lib/db';
 import BranchList from '@/components/branch/BranchList';
 
 export default async function AdminBranchesPage() {
-  // Inisialisasi Supabase sisi server
-  const supabase = await createClient();
+  try {
+    const branches = await db.branch.findMany({
+      orderBy: { branch_code: 'asc' },
+    });
 
-  // Mengambil seluruh data cabang, diurutkan berdasarkan kode cabang
-  const { data: branches, error } = await supabase
-    .from('branch')
-    .select('*')
-    .order('branch_code', { ascending: true });
+    const serializedBranches = branches.map((b) => ({
+      ...b,
+      id: Number(b.id),
+    }));
 
-  // Handle jika terjadi error saat fetch data
-  if (error) {
+    return <BranchList initialBranches={serializedBranches} />;
+  } catch (error) {
     console.error('Error fetching branches:', error);
     return (
       <div className="p-8 text-center text-red-600 bg-red-50 rounded-lg border border-red-200">
@@ -20,7 +21,4 @@ export default async function AdminBranchesPage() {
       </div>
     );
   }
-
-  // Lempar data asli dari database ke Client Component
-  return <BranchList initialBranches={branches || []} />;
-}
+}

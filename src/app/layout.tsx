@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ticketing System Bank Sumut",
-  description: "Bank Sumut Support Ticketing System",
+  title: "SIAP IT",
+  description: "Sistem Infrastruktur & Aduan Perangkat IT Bank Sumut",
 };
 
 export default function RootLayout({

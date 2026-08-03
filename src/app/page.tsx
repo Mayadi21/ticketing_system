@@ -49,8 +49,9 @@ const handleLogin = async (formData: FormData) => {
           <div className="bg-primary text-white p-3 rounded-xl mb-4">
             <Headset size={32} strokeWidth={1.5} />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-1">Bank Sumut Support</h1>
-          <p className="text-sm text-gray-500">Bank Sumut Helpdesk Terminal</p>
+<h1 className="text-2xl font-bold text-gray-900 mb-1">
+  Masuk ke <span className="text-[var(--color-accent)]">SIAP IT</span>
+</h1>          <p className="text-sm text-gray-500">Sistem Infrastruktur & Aduan Perangkat IT Bank Sumut</p>
         </div>
 
         {/* Notifikasi Error */}
@@ -114,7 +115,7 @@ const handleLogin = async (formData: FormData) => {
               isLoading ? 'bg-gray-400 cursor-not-allowed' : 'bg-primary hover:bg-primary-dark'
             }`}
           >
-            {isLoading ? 'Memverifikasi...' : 'Secure Login'}
+            {isLoading ? 'Memverifikasi...' : 'Login'}
             {!isLoading && <LogIn size={18} />}
           </button>
 

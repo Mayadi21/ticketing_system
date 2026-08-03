@@ -16,9 +16,24 @@ export default function BranchCreateTicketForm() {
 
     const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB dalam bytes
 
+    const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx', 'txt', 'rtf', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg'];
+
+    const isAllowedFile = (file: File) => {
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        return ext ? ALLOWED_EXTENSIONS.includes(ext) : false;
+    };
+
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files) {
             const incomingFiles = Array.from(e.target.files);
+
+            // Cek tipe file yang diperbolehkan
+            const invalidFiles = incomingFiles.filter(f => !isAllowedFile(f));
+            if (invalidFiles.length > 0) {
+                toast.error("Hanya file PDF, Docs (.doc/.docx/.txt), dan Gambar yang diperbolehkan!");
+                e.target.value = "";
+                return;
+            }
 
             // Cek apakah ada file yang melebihi 5MB
             const hasLargeFile = incomingFiles.some(file => file.size > MAX_FILE_SIZE);
@@ -135,7 +150,7 @@ export default function BranchCreateTicketForm() {
                     {/* Attachments */}
                     <div>
                         <label className="block text-sm font-bold text-slate-700 mb-2">
-                            Lampiran <span className="text-red-500 ml-1">*</span>
+                            Lampiran Masalah <span className="text-red-500 ml-1">*</span>
                         </label>
 
                         <div
@@ -148,6 +163,13 @@ export default function BranchCreateTicketForm() {
                                 setIsDragging(false);
                                 if (e.dataTransfer.files) {
                                     const incomingFiles = Array.from(e.dataTransfer.files);
+
+                                    // Cek tipe file yang diperbolehkan
+                                    const invalidFiles = incomingFiles.filter(f => !isAllowedFile(f));
+                                    if (invalidFiles.length > 0) {
+                                        toast.error("Hanya file PDF, Docs (.doc/.docx/.txt), dan Gambar yang diperbolehkan!");
+                                        return;
+                                    }
 
                                     // Cek ukuran file saat drag and drop
                                     const hasLargeFile = incomingFiles.some(file => file.size > MAX_FILE_SIZE);
@@ -168,6 +190,7 @@ export default function BranchCreateTicketForm() {
                             <input
                                 type="file"
                                 name="files"
+                                accept=".pdf,.doc,.docx,.txt,.rtf,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
                                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                                 multiple
                                 onChange={handleFileChange}
@@ -176,7 +199,7 @@ export default function BranchCreateTicketForm() {
                             <p className="text-sm md:text-base text-slate-600 mb-1 text-center">
                                 <span className="font-bold text-primary">Click to upload</span> or drag and drop
                             </p>
-                            <p className="text-xs text-slate-400 text-center">PNG, JPG atau PDF (max. 3 file, max. 5MB per file)</p>
+                            <p className="text-xs text-slate-400 text-center">PDF, DOC, DOCX, TXT, & Gambar (max. 3 file, max. 5MB per file)</p>
                         </div>
 
                         {/* Selected Files Preview */}
