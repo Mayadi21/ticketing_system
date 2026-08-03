@@ -34,6 +34,8 @@ export default function BranchLayout({
       const userData = await getCurrentUser();
       if (userData) {
         setUser(userData);
+      } else {
+        await logoutUser();
       }
     };
     fetchUser();

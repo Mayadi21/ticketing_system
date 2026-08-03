@@ -157,7 +157,7 @@ export default function BranchDashboard({
     href="/branch/tickets"
     className="text-primary text-sm font-medium flex items-center gap-1 hover:underline transition-colors"
   >
-    Lihat Semua
+    Lihat Semua Tiket
     <ArrowRight size={16} />
   </Link>
 </div>
@@ -175,7 +175,14 @@ export default function BranchDashboard({
                 {recentTickets.length > 0 ? (
                   recentTickets.map((ticket) => (
                     <tr key={ticket.id} className="border-b border-slate-100 hover:bg-slate-50 transition-colors">
-                      <td className="px-6 py-4 font-semibold text-slate-900">{ticket.ticket_no}</td>
+                      <td className="px-6 py-4 font-semibold text-slate-900">
+                        <Link
+                          href={`/branch/tickets/${ticket.ticket_no}`}
+                          className="font-semibold text-primary hover:text-primary-dark hover:underline transition-colors"
+                        >
+                          {ticket.ticket_no}
+                        </Link>
+                      </td>
                       <td className="px-6 py-4 font-medium text-slate-900">{ticket.title}</td>
                       <td className="px-6 py-4">
                         {getStatusBadge(ticket.status)}
@@ -226,14 +233,14 @@ export default function BranchDashboard({
           <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-6">
               <HelpCircle size={20} className="text-accent" />
-              <h3 className="font-semibold text-slate-900">Dukungan IT Regional</h3>
+              <h3 className="font-semibold text-slate-900">Dukungan IT</h3>
             </div>
             <div className="space-y-5">
               <div className="flex gap-3">
                 <Phone size={18} className="text-slate-400 mt-1" />
                 <div>
                   <p className="font-medium text-slate-900">Nomor Hotline Darurat</p>
-                  <p className="text-sm text-slate-500">1-800-123-456</p>
+                  <p className="text-sm text-slate-500">1-800-xxx-456</p>
                 </div>
               </div>
               <div className="flex gap-3">

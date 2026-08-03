@@ -32,6 +32,8 @@ export default function AdminLayout({
             const userData = await getCurrentUser();
             if (userData) {
                 setUser(userData);
+            } else {
+                await logoutUser();
             }
         };
         fetchUser();

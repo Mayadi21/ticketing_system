@@ -16,7 +16,13 @@ export async function sendTicketResolvedEmail(
   ticketNo: string,
   title: string,
   solutionNote: string,
+  role?: string
 ) {
+  const targetPath = role?.toUpperCase() === 'ADMIN'
+    ? `/admin/tickets/${ticketNo}`
+    : `/branch/tickets/${ticketNo}`;
+  const targetUrl = `${process.env.DEV_APP_URL}${targetPath}`;
+
   const mailOptions = {
     from: `"IT Ticketing System" <${process.env.SMTP_USER}>`,
     to: toEmail,
@@ -215,7 +221,7 @@ margin:40px 0;
 ">
 
 <a
-href="${process.env.DEV_APP_URL}"
+href="${targetUrl}"
 style="
 display:inline-block;
 padding:14px 34px;

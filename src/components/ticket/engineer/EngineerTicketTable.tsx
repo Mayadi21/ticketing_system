@@ -50,13 +50,14 @@ export default function EngineerTicketTable({ tickets }: EngineerTicketTableProp
     const processedTickets = useMemo(() => {
         let result = [...tickets];
 
-        // Fitur Pencarian (Ticket No, Judul / Issue Summary)
+        // Fitur Pencarian (No. Tiket, Judul Masalah, dan Nama Cabang)
         if (searchQuery.trim() !== '') {
             const query = searchQuery.toLowerCase();
             result = result.filter(
                 (ticket) =>
                     ticket.ticket_no.toLowerCase().includes(query) ||
-                    ticket.title.toLowerCase().includes(query)
+                    ticket.title.toLowerCase().includes(query) ||
+                    (ticket.branch?.branch_name && ticket.branch.branch_name.toLowerCase().includes(query))
             );
         }
 
@@ -65,46 +66,46 @@ export default function EngineerTicketTable({ tickets }: EngineerTicketTableProp
             result = result.filter((ticket) => ticket.status === statusFilter);
         }
 
-        // Kunci Logika: Otomatis mengurutkan dari deadline terdekat ke terjauh
-        // Jika tiket tidak memiliki deadline, ditaruh di paling bawah (Infinity)
+        // Kunci Logika: Mengurutkan dari deadline descending (terjauh/terbaru ke terdekat)
+        // Jika tiket tidak memiliki deadline, ditaruh di paling bawah (-Infinity)
         result.sort((a, b) => {
-            const timeA = a.deadline ? new Date(a.deadline).getTime() : Infinity;
-            const timeB = b.deadline ? new Date(b.deadline).getTime() : Infinity;
-            return timeA - timeB;
+            const timeA = a.deadline ? new Date(a.deadline).getTime() : -Infinity;
+            const timeB = b.deadline ? new Date(b.deadline).getTime() : -Infinity;
+            return timeB - timeA;
         });
 
         return result;
     }, [tickets, searchQuery, statusFilter]);
 
     const getDeadlineColor = (deadline?: string, status?: string) => {
-    if (!deadline) return 'text-slate-400';
-    
-    // Jika tiket sudah selesai/ditutup, gunakan warna netral agar tidak terlihat menakutkan (merah)
-    if (status === 'RESOLVED') {
-        return 'text-slate-500';
-    }
+        if (!deadline) return 'text-slate-400';
+        
+        // Jika tiket sudah selesai (RESOLVED), gunakan warna hijau sedang
+        if (status === 'RESOLVED') {
+            return 'text-emerald-600 font-medium';
+        }
 
-    if (status === 'CLOSED') {
-        return 'text-slate-500';
-    }
+        if (status === 'CLOSED') {
+            return 'text-slate-500';
+        }
 
-    const now = new Date().getTime();
-    const deadlineTime = new Date(deadline).getTime();
-    const timeDiff = deadlineTime - now;
-    
-    // Konversi milidetik ke jam
-    const hoursLeft = timeDiff / (1000 * 60 * 60);
+        const now = new Date().getTime();
+        const deadlineTime = new Date(deadline).getTime();
+        const timeDiff = deadlineTime - now;
+        
+        // Konversi milidetik ke jam
+        const hoursLeft = timeDiff / (1000 * 60 * 60);
 
-    if (hoursLeft < 0) {
-        return 'text-red-600 font-bold'; // Terlewat (Overdue)
-    } else if (hoursLeft <= 24) {
-        return 'text-amber-600 font-bold'; // Tersisa < 24 Jam (Warning)
-    } else if (hoursLeft <= 72) {
-        return 'text-blue-600 font-medium'; // Tersisa < 3 Hari (Mendekati)
-    } else {
-        return 'text-emerald-600 font-medium'; // Masih lama (Aman)
-    }
-};
+        if (hoursLeft < 0) {
+            return 'text-red-600 font-bold'; // Terlewat (Overdue)
+        } else if (hoursLeft <= 24) {
+            return 'text-amber-600 font-bold'; // Tersisa < 24 Jam (Warning)
+        } else if (hoursLeft <= 72) {
+            return 'text-yellow-600 font-medium'; // Tersisa <= 3 Hari (Kuning Lembut)
+        } else {
+            return 'text-blue-600 font-medium'; // Masih lama / Aman (Biru Sedang)
+        }
+    };
 
     // 4. LOGIKA PEMOTONGAN DATA (SLICING) PER HALAMAN
     const totalItems = processedTickets.length;
@@ -122,7 +123,7 @@ export default function EngineerTicketTable({ tickets }: EngineerTicketTableProp
             header: 'No. Tiket',
             cell: (ticket) => (
                 <Link
-                    href={`/engineer/tickets/${ticket.id}`}
+                    href={`/engineer/tickets/${ticket.ticket_no}`}
                     className="font-semibold text-primary hover:text-primary-dark hover:underline transition-colors"
                 >
                     {ticket.ticket_no}
@@ -130,13 +131,16 @@ export default function EngineerTicketTable({ tickets }: EngineerTicketTableProp
             ),
         },
         {
-            header: 'Bank Cabang',
-            cell: (ticket) => <span className="font-medium text-slate-800">{ticket.branch?.branch_name ?? '-'}</span>,
-        },
-        {
-            header: 'Masalah',
+            header: 'Masalah / Cabang',
             className: 'min-w-[250px]',
-            cell: (ticket) => <span className="text-slate-600 max-w-[250px] truncate block">{ticket.title}</span>,
+            cell: (ticket) => (
+                <div className="flex flex-col gap-0.5 max-w-[280px]">
+                    <span className="text-slate-900 font-medium truncate block">{ticket.title}</span>
+                    <span className="text-xs text-slate-500 font-normal truncate block">
+                        {ticket.branch?.branch_name ?? '-'}
+                    </span>
+                </div>
+            ),
         },
 {
             header: 'Deadline',
@@ -179,7 +183,7 @@ export default function EngineerTicketTable({ tickets }: EngineerTicketTableProp
                 <Search className="absolute left-3 top-2.5 h-4 w-4 text-slate-400" />
                 <input
                     type="text"
-                    placeholder="Cari No. Tiket dan Masalah..."
+                    placeholder="Cari Tiket, Masalah, atau Cabang..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="w-full pl-9 pr-4 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-800 placeholder-slate-400 focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm transition-all"

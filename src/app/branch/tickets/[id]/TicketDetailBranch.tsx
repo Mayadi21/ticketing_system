@@ -1,12 +1,17 @@
 'use client';
 
-import { ArrowLeft, Calendar, AlertCircle, CheckCircle2, Paperclip, FileText } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowLeft, Calendar, AlertCircle, CheckCircle2, Paperclip, FileText, Trash2, AlertTriangle } from 'lucide-react';
 import { formatLongDateTimeWIB } from '@/utils/date';
+import { useRouter } from 'next/navigation';
+import { deleteBranchTicket } from '@/app/actions/ticket';
+import toast from 'react-hot-toast';
+
 interface TicketDetailBranchProps {
     ticketData: {
-
         status: string;
-        priority: string; id: string;
+        priority: string;
+        id: string;
         ticketNumber: string;
         title: string;
         description: string;
@@ -18,6 +23,30 @@ interface TicketDetailBranchProps {
 }
 
 export default function TicketDetailBranch({ ticketData }: TicketDetailBranchProps) {
+    const router = useRouter();
+    const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const handleDeleteConfirm = async () => {
+        setIsDeleting(true);
+        const loadingToast = toast.loading('Menghapus tiket & lampiran...');
+        try {
+            const res = await deleteBranchTicket(ticketData.id);
+            if (res.error) {
+                toast.error(res.error, { id: loadingToast });
+                setIsDeleting(false);
+            } else {
+                toast.success(res.message || 'Tiket berhasil dihapus!', { id: loadingToast });
+                setTimeout(() => {
+                    router.push('/branch/dashboard');
+                }, 800);
+            }
+        } catch (err: any) {
+            toast.error('Terjadi kesalahan saat menghapus tiket.', { id: loadingToast });
+            setIsDeleting(false);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 p-4 md:p-6 text-slate-900 font-sans">
             <div className="max-w-[1000px] mx-auto space-y-6">
@@ -37,8 +66,19 @@ export default function TicketDetailBranch({ ticketData }: TicketDetailBranchPro
                         </h1>
                     </div>
 
-                    {/* STATUS BADGE */}
-                    <div>
+                    {/* STATUS BADGE & ACTION BUTTONS */}
+                    <div className="flex items-center gap-3">
+                        {ticketData.status === 'OPEN' && (
+                            <button
+                                type="button"
+                                onClick={() => setShowDeleteModal(true)}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition-colors shadow-xs"
+                            >
+                                <Trash2 size={16} />
+                                <span>Hapus Tiket</span>
+                            </button>
+                        )}
+
                         <span className={`px-4 py-1.5 text-sm font-bold rounded-full border shadow-sm ${ticketData.status === 'OPEN' || ticketData.status === 'ASSIGNED'
                                 ? 'bg-blue-50 text-blue-700 border-blue-200'
                                 : ticketData.status === 'IN_PROGRESS'
@@ -100,7 +140,7 @@ export default function TicketDetailBranch({ ticketData }: TicketDetailBranchPro
                         {ticketData.problemAttachments.length > 0 && (
                             <div>
                                 <h4 className="text-sm font-bold text-slate-800 mb-3 flex items-center gap-2">
-                                    <Paperclip size={16} /> Lampiran Laporan
+                                    <Paperclip size={16} /> Lampiran Tiket
                                 </h4>
                                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
 
@@ -146,7 +186,6 @@ export default function TicketDetailBranch({ ticketData }: TicketDetailBranchPro
                         </h3>
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                             {ticketData.solutionAttachments.map((att: any) => {
-                                // Periksa apakah URL berekstensi PDF
                                 const isPdf = att.url?.toLowerCase().includes('.pdf');
 
                                 return (
@@ -159,13 +198,11 @@ export default function TicketDetailBranch({ ticketData }: TicketDetailBranchPro
                                     >
                                         <div className="overflow-hidden rounded-xl border border-slate-200 shadow-sm relative h-44 bg-slate-50 flex items-center justify-center transition-transform duration-300 group-hover:scale-105">
                                             {isPdf ? (
-                                                // Tampilan untuk PDF
                                                 <div className="flex flex-col items-center justify-center gap-2 text-slate-400 group-hover:text-emerald-500 transition-colors z-10">
                                                     <FileText size={48} strokeWidth={1.5} />
                                                     <span className="text-xs font-semibold">Lihat PDF</span>
                                                 </div>
                                             ) : (
-                                                // Tampilan untuk Gambar
                                                 <img
                                                     src={att.url}
                                                     alt="Lampiran Solusi"
@@ -173,12 +210,51 @@ export default function TicketDetailBranch({ ticketData }: TicketDetailBranchPro
                                                 />
                                             )}
 
-                                            {/* Efek overlay gelap saat di-hover */}
                                             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors z-20 pointer-events-none"></div>
                                         </div>
                                     </a>
                                 );
                             })}
+                        </div>
+                    </div>
+                )}
+
+                {/* MODAL KONFIRMASI HAPUS TIKET */}
+                {showDeleteModal && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                        <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+                            <div className="flex items-center gap-3 text-red-600">
+                                <div className="p-2.5 bg-red-100 rounded-xl">
+                                    <AlertTriangle size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="font-bold text-slate-900 text-lg">Hapus Tiket #{ticketData.ticketNumber}?</h3>
+                                    <p className="text-xs text-slate-500">Tindakan ini tidak dapat dibatalkan.</p>
+                                </div>
+                            </div>
+
+                            <p className="text-sm text-slate-600 leading-relaxed">
+                                Apakah Anda yakin ingin menghapus tiket ini? Seluruh data tiket beserta file lampiran masalah di storage akan dihapus secara permanen dari sistem.
+                            </p>
+
+                            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+                                <button
+                                    type="button"
+                                    disabled={isDeleting}
+                                    onClick={() => setShowDeleteModal(false)}
+                                    className="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
+                                >
+                                    Batal
+                                </button>
+                                <button
+                                    type="button"
+                                    disabled={isDeleting}
+                                    onClick={handleDeleteConfirm}
+                                    className="px-4 py-2 text-xs font-semibold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors shadow-sm"
+                                >
+                                    {isDeleting ? 'Menghapus...' : 'Ya, Hapus Tiket'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}

@@ -115,7 +115,7 @@ export default function AdminTicketTable({ tickets }: AdminTicketTableProps) {
             header: 'No. Tiket',
             cell: (ticket) => (
                 <Link
-                    href={`/admin/tickets/${ticket.id}`}
+                    href={`/admin/tickets/${ticket.ticket_no}`}
                     className="font-semibold text-primary hover:text-primary-dark hover:underline transition-colors"
                 >
                     {ticket.ticket_no}

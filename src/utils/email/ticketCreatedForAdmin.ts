@@ -89,7 +89,7 @@ TERBUKA (OPEN)
 </table>
 
 <div style="text-align:center;margin:40px 0;">
-<a href="${process.env.DEV_APP_URL}/admin/tickets" style="display:inline-block;background:#004098;color:white;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:bold;font-size:15px;">
+<a href="${process.env.DEV_APP_URL}/admin/tickets/${ticketNo}" style="display:inline-block;background:#004098;color:white;text-decoration:none;padding:14px 32px;border-radius:10px;font-weight:bold;font-size:15px;">
 Lihat Tiket
 </a>
 </div>

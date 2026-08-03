@@ -4,14 +4,14 @@
 
 import { useState, use } from 'react';
 import { useRouter } from 'next/navigation';
-import { 
-  ArrowLeft, CheckCircle, FileText, 
-  Upload, X, Loader2, AlertCircle 
+import {
+  ArrowLeft, CheckCircle, FileText,
+  Upload, X, Loader2, AlertCircle
 } from 'lucide-react';
 
 // IMPORT SERVER ACTION ANDA
 // Sesuaikan path import ini dengan lokasi file ticket.ts Anda
-import { submitSolutionData } from '@/app/actions/ticket'; 
+import { submitSolutionData } from '@/app/actions/ticket';
 
 import { toast } from 'react-hot-toast';
 interface PageProps {
@@ -29,12 +29,15 @@ export default function TicketSolutionPage({ params }: PageProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
+  const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB dalam bytes
   const ALLOWED_EXTENSIONS = ['pdf', 'doc', 'docx', 'txt', 'rtf', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'bmp', 'svg'];
 
   // Handle Input File
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
       const newFiles = Array.from(e.target.files);
+
+      // Cek format file
       const invalidFiles = newFiles.filter((f) => {
         const ext = f.name.split('.').pop()?.toLowerCase();
         return !ext || !ALLOWED_EXTENSIONS.includes(ext);
@@ -46,7 +49,23 @@ export default function TicketSolutionPage({ params }: PageProps) {
         return;
       }
 
+      // Cek ukuran file maksimal 5MB
+      const hasLargeFile = newFiles.some((f) => f.size > MAX_FILE_SIZE);
+      if (hasLargeFile) {
+        toast.error("Ukuran setiap file maksimal adalah 5 MB!");
+        e.target.value = "";
+        return;
+      }
+
+      // Cek jumlah maksimal file
+      if (files.length + newFiles.length > 3) {
+        toast.error("Maksimal hanya 3 file yang bisa diupload!");
+        e.target.value = "";
+        return;
+      }
+
       setFiles((prev) => [...prev, ...newFiles]);
+      e.target.value = "";
     }
   };
 
@@ -57,13 +76,13 @@ export default function TicketSolutionPage({ params }: PageProps) {
   // Logic Submit Menggunakan Server Action
   const handleSubmit = async () => {
     setIsSubmitting(true);
-    
+
     try {
       // 1. Siapkan FormData
       const formData = new FormData();
       formData.append('ticketId', ticketId);
       formData.append('solutionNote', solutionNote);
-      
+
       // Masukkan semua file ke dalam FormData
       files.forEach((file) => {
         formData.append('files', file);
@@ -80,9 +99,9 @@ export default function TicketSolutionPage({ params }: PageProps) {
       // Berhasil
       toast.success(result.message || "Solution submitted successfully!");
 
-await new Promise(resolve => setTimeout(resolve, 1200));
+      await new Promise(resolve => setTimeout(resolve, 1200));
 
-router.push('/engineer');
+      router.push('/engineer');
 
     } catch (error: any) {
       console.error('Error finishing problem:', error);
@@ -96,9 +115,9 @@ router.push('/engineer');
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 text-slate-900 font-sans">
       <div className="max-w-3xl mx-auto">
-        
+
         {/* Header */}
-        <button 
+        <button
           onClick={() => router.back()}
           className="flex items-center gap-2 text-slate-500 hover:text-slate-900 mb-6 transition-colors font-medium"
         >
@@ -139,11 +158,11 @@ router.push('/engineer');
               <label className="text-sm font-semibold text-slate-700 flex items-center gap-2">
                 <Upload size={16} /> Solution Attachments (PDF/Docs/Image)
               </label>
-              
+
               <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center hover:border-emerald-400 transition-colors group relative">
-                <input 
-                  type="file" 
-                  multiple 
+                <input
+                  type="file"
+                  multiple
                   accept=".pdf,.doc,.docx,.txt,.rtf,image/*,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
                   onChange={handleFileChange}
                   className="absolute inset-0 opacity-0 cursor-pointer"
@@ -164,7 +183,7 @@ router.push('/engineer');
                         <FileText size={18} className="text-slate-400 shrink-0" />
                         <span className="text-sm text-slate-600 truncate">{file.name}</span>
                       </div>
-                      <button 
+                      <button
                         onClick={() => removeFile(idx)}
                         className="text-slate-400 hover:text-red-500 transition-colors"
                       >
@@ -195,24 +214,24 @@ router.push('/engineer');
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl">
             <div className="flex items-center gap-3 text-amber-600 mb-4">
               <AlertCircle size={28} />
-              <h3 className="text-xl font-bold">Confirm Completion</h3>
+              <h3 className="text-xl font-bold">Konfirmasi Penyelesaian</h3>
             </div>
             <p className="text-slate-600 mb-6 leading-relaxed">
-              Are you sure you want to complete this ticket? Please ensure the issue is resolved and any attachments (if applicable) are correct. This action will change the ticket status to <span className="font-bold">RESOLVED</span>.
+              Apakah Anda yakin ingin menyelesaikan tiket ini? Pastikan masalah telah teratasi dan lampiran (jika ada) sudah sesuai. Tindakan ini akan mengubah status tiket menjadi <span className="font-bold">SELESAI</span>.
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowConfirm(false)}
                 className="flex-1 py-3 px-4 rounded-xl border border-slate-200 font-semibold text-slate-600 hover:bg-slate-50 transition-colors"
               >
-                Cancel
+                Batal
               </button>
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
                 className="flex-1 py-3 px-4 rounded-xl bg-emerald-600 text-white font-bold hover:bg-emerald-700 transition-colors flex items-center justify-center gap-2"
               >
-                {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : 'Yes, Resolve'}
+                {isSubmitting ? <Loader2 className="animate-spin" size={18} /> : 'Ya, Selesaikan'}
               </button>
             </div>
           </div>

@@ -26,8 +26,8 @@ model problem {
   affected_branch_id             BigInt
   ticket_no                      String                @unique @db.VarChar(11)
   title                          String                @db.VarChar(255)
-  priority                       String                @default("LOW") @db.VarChar(50)
-  status                         String                @default("OPEN") @db.VarChar(50)
+  priority                       Priority              @default(LOW)
+  status                         Status                @default(OPEN)
   description                    String
   solution_note                  String?
   created_at                     DateTime              @default(now())
@@ -72,7 +72,8 @@ model user {
   name                                      String        @db.VarChar(255)
   email                                     String        @unique @db.VarChar(255)
   password                                  String        @db.VarChar(255)
-  role                                      String        @db.VarChar(50)
+  role                                      Role
+  status                                    UserStatus    @default(ACTIVE)
   image                                     String?       @db.VarChar(255)
   phone                                     String?       @db.VarChar(20)
   problem_problem_approved_byTouser         problem[]     @relation("problem_approved_byTouser")
@@ -80,4 +81,30 @@ model user {
   problem_eng_problem_eng_assigned_byTouser problem_eng[] @relation("problem_eng_assigned_byTouser")
   problem_eng_problem_eng_engineer_idTouser problem_eng[] @relation("problem_eng_engineer_idTouser")
   branch                                    branch?       @relation(fields: [branch_id], references: [id])
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum Role {
+  ADMIN
+  BRANCH
+  ENGINEER
+  SUPER_ADMIN
+}
+
+enum Status {
+  OPEN
+  ASSIGNED
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+enum UserStatus {
+  ACTIVE
+  NON_ACTIVE
 }

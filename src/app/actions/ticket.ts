@@ -4,7 +4,7 @@
 
 import { db } from "@/lib/db";
 import { cookies } from "next/headers";
-import { writeFile, mkdir } from "fs/promises";
+import { writeFile, mkdir, unlink } from "fs/promises";
 import path from "path";
 
 const Priority = {
@@ -139,13 +139,17 @@ export async function submitBranchTicketData(formData: FormData) {
   }
 
   try {
-    // 2. Dapatkan branch_id milik user yang sedang login
+    // 2. Dapatkan branch_id & status milik user yang sedang login
     const userData = await db.user.findUnique({
       where: { id: userId },
-      select: { branch_id: true },
+      select: { branch_id: true, status: true },
     });
 
-    if (!userData?.branch_id) {
+    if (!userData || (userData.status !== 'ACTIVE' && String(userData.status).toUpperCase() !== 'ACTIVE')) {
+      return { error: "Akun Anda telah dinonaktifkan. Silakan hubungi administrator." };
+    }
+
+    if (!userData.branch_id) {
       return { error: "Gagal mengambil data cabang Anda dari database." };
     }
     const affectedBranchId = userData.branch_id;
@@ -212,24 +216,20 @@ export async function submitBranchTicketData(formData: FormData) {
       }
     }
 
-    // Ambil semua data user yang memiliki role ADMIN
-    const adminsToNotify = await db.user.findMany({
-      where: { role: "ADMIN" },
+    // Ambil user pertama yang memiliki role ADMIN dan status ACTIVE
+    const adminToNotify = await db.user.findFirst({
+      where: { role: "ADMIN", status: "ACTIVE" },
       select: { name: true, email: true },
     });
 
-    if (adminsToNotify.length > 0) {
-      await Promise.allSettled(
-        adminsToNotify.map((admin) =>
-          sendNewTicketToAdminEmail(
-            admin.email,
-            admin.name,
-            branchName,
-            ticketNo,
-            title,
-            description
-          )
-        )
+    if (adminToNotify) {
+      await sendNewTicketToAdminEmail(
+        adminToNotify.email,
+        adminToNotify.name,
+        branchName,
+        ticketNo,
+        title,
+        description
       );
     }
 
@@ -459,7 +459,7 @@ export async function setAndAssignTicket(
     await db.problem.update({
       where: { id: bigTicketId },
       data: {
-        priority: priority,
+        priority: priority as any,
         status: Status.ASSIGNED,
         deadline: new Date(deadline),
         approved_by: assignedBy,
@@ -577,8 +577,18 @@ export async function startSolveTicket(ticketId: string | number) {
     return { error: "Sesi tidak ditemukan. Silakan login ulang." };
 
   try {
+    const isNumeric = /^\d+$/.test(String(ticketId));
+    const problem = await db.problem.findFirst({
+      where: isNumeric
+        ? { OR: [{ id: BigInt(ticketId) }, { ticket_no: String(ticketId) }] }
+        : { ticket_no: String(ticketId) },
+      select: { id: true },
+    });
+
+    if (!problem) return { error: "Tiket tidak ditemukan." };
+
     await db.problem.update({
-      where: { id: BigInt(ticketId) },
+      where: { id: problem.id },
       data: {
         status: Status.IN_PROGRESS,
         updated_at: new Date(),
@@ -608,17 +618,20 @@ export async function submitSolutionData(formData: FormData) {
     return { error: "ID Tiket dan Catatan Solusi wajib diisi." };
   }
 
-  const bigTicketId = BigInt(ticketIdStr);
-
   try {
-    const problemData = await db.problem.findUnique({
-      where: { id: bigTicketId },
-      select: { ticket_no: true, title: true, created_by: true, approved_by: true },
+    const isNumeric = /^\d+$/.test(ticketIdStr);
+    const problemData = await db.problem.findFirst({
+      where: isNumeric
+        ? { OR: [{ id: BigInt(ticketIdStr) }, { ticket_no: ticketIdStr }] }
+        : { ticket_no: ticketIdStr },
+      select: { id: true, ticket_no: true, title: true, created_by: true, approved_by: true },
     });
 
     if (!problemData) {
       throw new Error("Gagal mengambil data tiket untuk notifikasi.");
     }
+
+    const bigTicketId = problemData.id;
 
     await db.problem.update({
       where: { id: bigTicketId },
@@ -631,7 +644,16 @@ export async function submitSolutionData(formData: FormData) {
 
     // 3. Handle Upload Lampiran Solusi
     const files = formData.getAll("files") as File[];
+    const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
+
+    if (files.length > 3) {
+      return { error: "Maksimal file solusi yang diizinkan hanya 3 file." };
+    }
+
     for (const file of files) {
+      if (file.size > MAX_FILE_SIZE) {
+        return { error: `File '${file.name}' melebihi batas ukuran maksimal 5 MB.` };
+      }
       if (file.size > 0 && !isValidAttachment(file)) {
         return { error: `File '${file.name}' tidak diizinkan. Hanya file PDF, Docs (.doc/.docx/.txt), dan Gambar yang diperbolehkan.` };
       }
@@ -664,7 +686,7 @@ export async function submitSolutionData(formData: FormData) {
     if (uniqueUserIds.length > 0) {
       const usersToNotify = await db.user.findMany({
         where: { id: { in: uniqueUserIds } },
-        select: { name: true, email: true },
+        select: { name: true, email: true, role: true },
       });
 
       if (usersToNotify.length > 0) {
@@ -675,7 +697,8 @@ export async function submitSolutionData(formData: FormData) {
               user.name,
               problemData.ticket_no,
               problemData.title,
-              solutionNote
+              solutionNote,
+              user.role
             )
           )
         );
@@ -696,13 +719,108 @@ export async function submitSolutionData(formData: FormData) {
 
 export async function closeTicket(problemId: number | string) {
   try {
+    const isNumeric = /^\d+$/.test(String(problemId));
+    const problem = await db.problem.findFirst({
+      where: isNumeric
+        ? { OR: [{ id: BigInt(problemId) }, { ticket_no: String(problemId) }] }
+        : { ticket_no: String(problemId) },
+      select: { id: true },
+    });
+
+    if (!problem) return { error: "Tiket tidak ditemukan." };
+
     await db.problem.update({
-      where: { id: BigInt(problemId) },
+      where: { id: problem.id },
       data: { status: Status.CLOSED },
     });
 
     return { success: true };
   } catch (error: any) {
     return { error: error.message };
+  }
+}
+
+export async function deleteBranchTicket(ticketId: number | string) {
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get("ticketing_session");
+
+  if (!sessionCookie) {
+    return { error: "Sesi tidak ditemukan. Silakan login ulang." };
+  }
+
+  const sessionData = JSON.parse(sessionCookie.value);
+  const userId = BigInt(sessionData.id);
+  const userRole = sessionData.role?.toUpperCase();
+
+  try {
+    const isNumeric = /^\d+$/.test(String(ticketId));
+    const problem = await db.problem.findFirst({
+      where: isNumeric
+        ? { OR: [{ id: BigInt(ticketId) }, { ticket_no: String(ticketId) }] }
+        : { ticket_no: String(ticketId) },
+      include: {
+        problem_attachment: true,
+        solution_attachment: true,
+      },
+    });
+
+    if (!problem) {
+      return { error: "Tiket tidak ditemukan." };
+    }
+
+    const bigTicketId = problem.id;
+
+    // Hak akses: Pembuat tiket atau Admin
+    if (userRole !== "ADMIN" && problem.created_by !== userId) {
+      return { error: "Anda tidak memiliki akses untuk menghapus tiket ini." };
+    }
+
+    // Syarat utama: Tiket harus berstatus OPEN
+    if (problem.status !== Status.OPEN) {
+      return { error: "Tiket hanya dapat dihapus saat masih berstatus OPEN." };
+    }
+
+    // 1. Hapus file fisik lampiran dari storage
+    const storageDir = process.env.STORAGE_PATH || "public/attachments";
+
+    for (const att of problem.problem_attachment) {
+      if (att.file_path) {
+        const fullPath = path.isAbsolute(storageDir)
+          ? path.join(storageDir, att.file_path)
+          : path.join(process.cwd(), storageDir, att.file_path);
+        try {
+          await unlink(fullPath);
+        } catch (err) {
+          console.warn(`File lampiran tidak ditemukan atau gagal dihapus dari disk: ${fullPath}`, err);
+        }
+      }
+    }
+
+    for (const att of problem.solution_attachment) {
+      if (att.file_path) {
+        const fullPath = path.isAbsolute(storageDir)
+          ? path.join(storageDir, att.file_path)
+          : path.join(process.cwd(), storageDir, att.file_path);
+        try {
+          await unlink(fullPath);
+        } catch (err) {
+          console.warn(`File solusi tidak ditemukan atau gagal dihapus dari disk: ${fullPath}`, err);
+        }
+      }
+    }
+
+    // 2. Hapus record terkait di database & record tiket
+    await db.problem_attachment.deleteMany({ where: { problem_id: bigTicketId } });
+    await db.solution_attachment.deleteMany({ where: { problem_id: bigTicketId } });
+    await db.problem_eng.deleteMany({ where: { problem_id: bigTicketId } });
+
+    await db.problem.delete({
+      where: { id: bigTicketId },
+    });
+
+    return { success: true, message: "Tiket dan seluruh file lampiran berhasil dihapus dari sistem!" };
+  } catch (error: any) {
+    console.error("DEBUG ERROR DELETE TICKET:", error);
+    return { error: error.message || "Terjadi kesalahan sistem saat menghapus tiket." };
   }
 }

@@ -13,8 +13,11 @@ export default async function BranchTicketDetailPage({ params }: PageProps) {
     const ticketId = resolvedParams.id;
 
     try {
-        const ticket = await db.problem.findUnique({
-            where: { id: BigInt(ticketId) },
+        const isNumeric = /^\d+$/.test(ticketId);
+        const ticket = await db.problem.findFirst({
+            where: isNumeric
+                ? { OR: [{ id: BigInt(ticketId) }, { ticket_no: ticketId }] }
+                : { ticket_no: ticketId },
             include: {
                 problem_attachment: true,
                 solution_attachment: true,

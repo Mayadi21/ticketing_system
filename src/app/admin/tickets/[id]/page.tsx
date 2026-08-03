@@ -23,11 +23,13 @@ export default async function AdminTicketDetailPage({ params }: PageProps) {
   }
 
   try {
-    const bigTicketId = BigInt(ticketId);
+    const isNumeric = /^\d+$/.test(ticketId);
 
     // 1. Ambil data detail tiket
-    const ticket = await db.problem.findUnique({
-      where: { id: bigTicketId },
+    const ticket = await db.problem.findFirst({
+      where: isNumeric
+        ? { OR: [{ id: BigInt(ticketId) }, { ticket_no: ticketId }] }
+        : { ticket_no: ticketId },
       include: {
         branch: {
           select: { branch_name: true },

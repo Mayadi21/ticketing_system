@@ -26,7 +26,9 @@ const handleLogin = async (formData: FormData) => {
       // Jika sukses, arahkan berdasarkan Role sesuai struktur folder Anda
       console.log("Login sukses! Mengarahkan role:", result.role);
       
-      if (result.role === 'ADMIN') {
+      if (result.role === 'SUPER_ADMIN') {
+        router.push('/superadmin/users');
+      } else if (result.role === 'ADMIN') {
         router.push('/admin/dashboard');
       } else if (result.role === 'BRANCH') {
         router.push('/branch/dashboard');

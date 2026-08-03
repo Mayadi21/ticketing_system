@@ -22,7 +22,12 @@ export async function loginUser(formData: FormData) {
     return { error: 'Email tidak terdaftar atau salah.' };
   }
 
-  // 2. Verifikasi Password
+  // 2. Cek status keaktifan user (NON_ACTIVE / bukan ACTIVE tidak diizinkan login)
+  if (user.status !== 'ACTIVE' && String(user.status).toUpperCase() !== 'ACTIVE') {
+    return { error: 'Akun Anda telah dinonaktifkan. Silakan hubungi administrator.' };
+  }
+
+  // 3. Verifikasi Password
   const isPasswordMatch = await bcrypt.compare(password, user.password);
 
   if (!isPasswordMatch) {
@@ -36,6 +41,7 @@ export async function loginUser(formData: FormData) {
   const sessionData = {
     id: Number(user.id),
     role: user.role,
+    status: user.status,
     name: user.name,
     branch_id: user.branch_id ? Number(user.branch_id) : null,
     image: user.image,
@@ -78,6 +84,7 @@ export async function getCurrentUser() {
       select: {
         name: true,
         role: true,
+        status: true,
         image: true,
         branch: {
           select: {
@@ -87,7 +94,9 @@ export async function getCurrentUser() {
       },
     });
 
-    if (!user) return null;
+    if (!user || (user.status !== 'ACTIVE' && String(user.status).toUpperCase() !== 'ACTIVE')) {
+      return null;
+    }
 
     return {
       name: user.name,

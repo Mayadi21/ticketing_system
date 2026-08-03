@@ -232,7 +232,7 @@ export default function TicketDetail({ ticketData }: TicketDetailProps) {
 
                   {currentStatus === 'IN_PROGRESS' && (
                     <button
-                      onClick={() => router.push(`/engineer/tickets/${ticketData.id}/solution`)}
+                      onClick={() => router.push(`/engineer/tickets/${ticketData.ticketNumber}/solution`)}
                       className="w-full flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors"
                     >
                       <CheckCircle size={18} />

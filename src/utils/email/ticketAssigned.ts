@@ -27,7 +27,7 @@ html: `
 <html>
 <head>
 <meta charset="UTF-8" />
-<title>Ticket Assignment</title>
+<title>Penugasan Tiket</title>
 </head>
 
 <body style="margin:0;padding:0;background:#f1f5f9;font-family:Arial,Helvetica,sans-serif;">
@@ -59,7 +59,7 @@ color:white;
 </h1>
 
 <p style="margin-top:10px;font-size:15px;opacity:.9;">
-Enterprise IT Ticketing System
+Sistem Ticketing IT Enterprise
 </p>
 
 </td>
@@ -70,12 +70,12 @@ Enterprise IT Ticketing System
 <td style="padding:40px;">
 
 <h2 style="margin-top:0;color:#0f172a;">
-Hello, ${engineerName} 👋
+Halo, ${engineerName} 👋
 </h2>
 
 <p style="font-size:15px;color:#475569;line-height:1.7;">
-A new support ticket has been assigned to you.
-Please review the issue and begin troubleshooting as soon as possible.
+Sebuah tiket support baru telah ditugaskan kepada Anda.
+Silakan tinjau permasalahan tersebut dan segera mulai proses penanganan.
 </p>
 
 <!-- BADGE -->
@@ -91,7 +91,7 @@ font-size:13px;
 font-weight:bold;
 ">
 
-NEW ASSIGNMENT
+PENUGASAN BARU
 
 </span>
 
@@ -120,7 +120,7 @@ margin:0 0 20px 0;
 color:#0f172a;
 ">
 
-Ticket Information
+Informasi Tiket
 
 </h3>
 
@@ -138,7 +138,7 @@ color:#64748b;
 width:160px;
 ">
 
-Ticket Number
+Nomor Tiket
 
 </td>
 
@@ -162,7 +162,7 @@ padding:8px 0;
 color:#64748b;
 ">
 
-Title
+Judul
 
 </td>
 
@@ -187,7 +187,7 @@ color:#64748b;
 vertical-align:top;
 ">
 
-Description
+Deskripsi
 
 </td>
 
@@ -229,7 +229,7 @@ font-weight:bold;
 font-size:13px;
 ">
 
-ASSIGNED
+DITUGASKAN
 
 </span>
 
@@ -254,7 +254,7 @@ margin:40px 0;
 ">
 
 <a
-href="${process.env.DEV_APP_URL}/engineer"
+href="${process.env.DEV_APP_URL}/engineer/tickets/${ticketNo}"
 style="
 display:inline-block;
 background:#004098;
@@ -266,7 +266,7 @@ font-weight:bold;
 font-size:15px;
 ">
 
-See Ticket
+Lihat Tiket
 
 </a>
 
@@ -279,9 +279,9 @@ color:#64748b;
 line-height:1.7;
 ">
 
-Please complete the assigned task according to the applicable SLA.
-If you believe this ticket has been assigned incorrectly,
-please contact the system administrator immediately.
+Mohon selesaikan tiket yang telah ditugaskan sesuai dengan SLA yang berlaku.
+Apabila Anda merasa tiket ini ditugaskan kepada orang yang tidak tepat,
+silakan segera menghubungi administrator sistem.
 
 </p>
 
@@ -307,11 +307,11 @@ font-size:13px;
 color:#64748b;
 ">
 
-This is an automated notification from
+Ini adalah notifikasi otomatis dari
 
 <strong>
 
-Bank Sumut Enterprise IT Ticketing System
+Sistem Ticketing IT Enterprise Bank Sumut
 
 </strong>
 
@@ -325,7 +325,7 @@ color:#94a3b8;
 ">
 
 © ${new Date().getFullYear()} Bank Sumut.
-All rights reserved.
+Seluruh hak cipta dilindungi.
 
 </p>
 

@@ -92,7 +92,7 @@ export default function BranchTicketTable({ tickets }: BranchTicketTableProps) {
             header: 'ID Tiket',
             cell: (ticket) => (
                 <Link
-                    href={`/branch/tickets/${ticket.id}`}
+                    href={`/branch/tickets/${ticket.ticket_no}`}
                     className="font-semibold text-primary hover:text-primary-dark hover:underline transition-colors"
                 >
                     {ticket.ticket_no}

@@ -30,6 +30,8 @@ export default function EngineerLayout({
             const userData = await getCurrentUser();
             if (userData) {
                 setUser(userData);
+            } else {
+                await logoutUser();
             }
         };
         fetchUser();
