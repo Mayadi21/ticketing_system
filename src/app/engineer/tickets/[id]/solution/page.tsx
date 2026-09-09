@@ -132,7 +132,7 @@ export default function TicketSolutionPage({ params }: PageProps) {
               </div>
               <div>
                 <h1 className="text-xl font-bold text-slate-900">Complete Ticket</h1>
-                <p className="text-sm text-slate-500">Provide solution details and supporting attachments</p>
+                <p className="text-sm text-slate-500">Berikan Solusi Beserta Lampiran untuk masalah Bank</p>
               </div>
             </div>
           </div>

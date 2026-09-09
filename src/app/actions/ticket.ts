@@ -61,20 +61,71 @@ function validateDeadlineDateServer(deadlineStr: string | null): string | null {
   return null;
 }
 
-// Helper function untuk menyimpan file lampiran menggunakan process.env.STORAGE_PATH
+// Helper: deteksi apakah STORAGE_PATH adalah URL (Supabase) atau path lokal
+function isSupabaseStorageUrl(storagePath: string): boolean {
+  return storagePath.startsWith("http://") || storagePath.startsWith("https://");
+}
+
+// Helper function untuk menyimpan file lampiran.
+// - Jika STORAGE_PATH = URL Supabase → upload via Supabase Storage REST API
+// - Jika STORAGE_PATH = path lokal  → simpan ke disk
 async function saveAttachmentLocally(file: File, relativeFilePath: string) {
-  const bytes = await file.arrayBuffer();
-  const buffer = Buffer.from(bytes);
-
   const storageDir = process.env.STORAGE_PATH || "public/attachments";
-  const fullPath = path.isAbsolute(storageDir)
-    ? path.join(storageDir, relativeFilePath)
-    : path.join(process.cwd(), storageDir, relativeFilePath);
 
-  const dir = path.dirname(fullPath);
-  await mkdir(dir, { recursive: true });
-  await writeFile(fullPath, buffer);
-  return `/attachments/${relativeFilePath}`;
+  if (isSupabaseStorageUrl(storageDir)) {
+    // === Mode Supabase Storage ===
+    // storageDir contoh: https://xxx.supabase.co/storage/v1/object/public/attachments
+    // Kita perlu upload via REST API: /storage/v1/object/<bucket>/<path>
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    // Gunakan service_role key (JWT) untuk upload — BUKAN anon key
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      throw new Error("NEXT_PUBLIC_SUPABASE_URL atau SUPABASE_SERVICE_ROLE_KEY belum dikonfigurasi di .env");
+    }
+
+    // Ekstrak nama bucket dari STORAGE_PATH
+    // Format: https://<project>.supabase.co/storage/v1/object/public/<bucket>
+    const bucketMatch = storageDir.match(/\/storage\/v1\/object\/public\/([^/]+)/);
+    if (!bucketMatch) {
+      throw new Error(`Format STORAGE_PATH tidak valid: ${storageDir}. Harusnya berupa URL Supabase Storage public.`);
+    }
+    const bucket = bucketMatch[1];
+
+    const uploadUrl = `${supabaseUrl}/storage/v1/object/${bucket}/${relativeFilePath}`;
+    const bytes = await file.arrayBuffer();
+
+    const res = await fetch(uploadUrl, {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${supabaseKey}`,
+        "Content-Type": file.type || "application/octet-stream",
+        "x-upsert": "true",
+      },
+      body: bytes,
+    });
+
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Gagal upload ke Supabase Storage: ${res.status} ${errText}`);
+    }
+
+    // Return URL publik Supabase
+    return `${storageDir}/${relativeFilePath}`;
+  } else {
+    // === Mode Lokal (Produksi / server fisik) ===
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+
+    const fullPath = path.isAbsolute(storageDir)
+      ? path.join(storageDir, relativeFilePath)
+      : path.join(process.cwd(), storageDir, relativeFilePath);
+
+    const dir = path.dirname(fullPath);
+    await mkdir(dir, { recursive: true });
+    await writeFile(fullPath, buffer);
+    return `/attachments/${relativeFilePath}`;
+  }
 }
 
 export async function getTicketMetadata() {
@@ -782,29 +833,59 @@ export async function deleteBranchTicket(ticketId: number | string) {
 
     // 1. Hapus file fisik lampiran dari storage
     const storageDir = process.env.STORAGE_PATH || "public/attachments";
+    const usingSupabase = storageDir.startsWith("http://") || storageDir.startsWith("https://");
 
-    for (const att of problem.problem_attachment) {
-      if (att.file_path) {
-        const fullPath = path.isAbsolute(storageDir)
-          ? path.join(storageDir, att.file_path)
-          : path.join(process.cwd(), storageDir, att.file_path);
-        try {
-          await unlink(fullPath);
-        } catch (err) {
-          console.warn(`File lampiran tidak ditemukan atau gagal dihapus dari disk: ${fullPath}`, err);
+    if (usingSupabase) {
+      // Untuk Supabase Storage, hapus via REST API
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      // Gunakan service_role key (JWT) untuk delete — BUKAN anon key
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      const bucketMatch = storageDir.match(/\/storage\/v1\/object\/public\/([^/]+)/);
+      const bucket = bucketMatch?.[1];
+
+      if (supabaseUrl && supabaseKey && bucket) {
+        const allAttachments = [
+          ...problem.problem_attachment.map(a => a.file_path),
+          ...problem.solution_attachment.map(a => a.file_path),
+        ].filter(Boolean) as string[];
+
+        if (allAttachments.length > 0) {
+          const deleteUrl = `${supabaseUrl}/storage/v1/object/${bucket}`;
+          await fetch(deleteUrl, {
+            method: "DELETE",
+            headers: {
+              "Authorization": `Bearer ${supabaseKey}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ prefixes: allAttachments }),
+          });
         }
       }
-    }
+    } else {
+      // Mode lokal: hapus file dari disk
+      for (const att of problem.problem_attachment) {
+        if (att.file_path) {
+          const fullPath = path.isAbsolute(storageDir)
+            ? path.join(storageDir, att.file_path)
+            : path.join(process.cwd(), storageDir, att.file_path);
+          try {
+            await unlink(fullPath);
+          } catch (err) {
+            console.warn(`File lampiran tidak ditemukan atau gagal dihapus dari disk: ${fullPath}`, err);
+          }
+        }
+      }
 
-    for (const att of problem.solution_attachment) {
-      if (att.file_path) {
-        const fullPath = path.isAbsolute(storageDir)
-          ? path.join(storageDir, att.file_path)
-          : path.join(process.cwd(), storageDir, att.file_path);
-        try {
-          await unlink(fullPath);
-        } catch (err) {
-          console.warn(`File solusi tidak ditemukan atau gagal dihapus dari disk: ${fullPath}`, err);
+      for (const att of problem.solution_attachment) {
+        if (att.file_path) {
+          const fullPath = path.isAbsolute(storageDir)
+            ? path.join(storageDir, att.file_path)
+            : path.join(process.cwd(), storageDir, att.file_path);
+          try {
+            await unlink(fullPath);
+          } catch (err) {
+            console.warn(`File solusi tidak ditemukan atau gagal dihapus dari disk: ${fullPath}`, err);
+          }
         }
       }
     }

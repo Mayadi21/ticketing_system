@@ -452,6 +452,11 @@ export default function TicketDetail({ ticketData, engineerOptions }: TicketDeta
                       {loading ? 'Menutup...' : 'Tutup Tiket'}
                     </button>
                   </div>
+                ) : status === 'IN_PROGRESS' ? (
+                  // JIKA STATUS == IN_PROGRESS
+                  <div className="pt-3 border-t border-slate-100 flex items-center gap-1.5 text-xs text-slate-500 italic">
+                    <ShieldAlert size={14} className="text-slate-400" /> Tiket sedang diproses. Tidak ada tindakan lebih lanjut yang dapat diambil.
+                  </div>
                 ) : (
                   // JIKA STATUS == CLOSED
                   <div className="pt-3 border-t border-slate-100 flex items-center gap-1.5 text-xs text-slate-500 italic">

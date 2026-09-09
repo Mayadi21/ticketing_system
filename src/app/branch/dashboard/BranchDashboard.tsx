@@ -240,7 +240,7 @@ export default function BranchDashboard({
                 <Phone size={18} className="text-slate-400 mt-1" />
                 <div>
                   <p className="font-medium text-slate-900">Nomor Hotline Darurat</p>
-                  <p className="text-sm text-slate-500">1-800-xxx-456</p>
+                  <p className="text-sm text-slate-500">(061) 4155100</p>
                 </div>
               </div>
               <div className="flex gap-3">

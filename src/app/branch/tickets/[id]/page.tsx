@@ -4,6 +4,15 @@
 import { db } from '@/lib/db';
 import TicketDetailBranch from './TicketDetailBranch';
 
+function resolveAttachmentUrl(filePath: string): string {
+  if (filePath.startsWith('http') || filePath.startsWith('/')) return filePath;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (supabaseUrl) {
+    return `${supabaseUrl}/storage/v1/object/public/attachments/${filePath}`;
+  }
+  return `/attachments/${filePath}`;
+}
+
 interface PageProps {
     params: Promise<{ id: string }>;
 }
@@ -45,13 +54,13 @@ export default async function BranchTicketDetailPage({ params }: PageProps) {
             // Lampiran Masalah (Problem Attachments)
             problemAttachments: (ticket.problem_attachment || []).map((att) => ({
                 id: att.id.toString(),
-                url: att.file_path.startsWith('http') || att.file_path.startsWith('/') ? att.file_path : `/attachments/${att.file_path}`,
+                url: resolveAttachmentUrl(att.file_path),
             })),
 
             // Lampiran Solusi (Solution Attachments)
             solutionAttachments: (ticket.solution_attachment || []).map((att) => ({
                 id: att.id.toString(),
-                url: att.file_path.startsWith('http') || att.file_path.startsWith('/') ? att.file_path : `/attachments/${att.file_path}`,
+                url: resolveAttachmentUrl(att.file_path),
             })),
         };
 

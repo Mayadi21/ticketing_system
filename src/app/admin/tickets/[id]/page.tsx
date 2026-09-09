@@ -2,6 +2,15 @@ import { cookies } from 'next/headers';
 import { db } from '@/lib/db';
 import TicketDetail from '@/app/admin/tickets/[id]/TicketDetailAdmin';
 
+function resolveAttachmentUrl(filePath: string): string {
+  if (filePath.startsWith('http') || filePath.startsWith('/')) return filePath;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (supabaseUrl) {
+    return `${supabaseUrl}/storage/v1/object/public/attachments/${filePath}`;
+  }
+  return `/attachments/${filePath}`;
+}
+
 interface PageProps {
   params: Promise<{ id: string }>;
 }
@@ -82,13 +91,13 @@ export default async function AdminTicketDetailPage({ params }: PageProps) {
       // Attachment Masalah
       attachments: (ticket.problem_attachment || []).map((att) => ({
         id: Number(att.id),
-        url: att.file_path.startsWith('http') || att.file_path.startsWith('/') ? att.file_path : `/attachments/${att.file_path}`,
+        url: resolveAttachmentUrl(att.file_path),
       })),
 
       // Attachment Solusi
       solution_attachments: (ticket.solution_attachment || []).map((att) => ({
         id: Number(att.id),
-        file_path: att.file_path.startsWith('http') || att.file_path.startsWith('/') ? att.file_path : `/attachments/${att.file_path}`,
+        file_path: resolveAttachmentUrl(att.file_path),
       })),
 
       assignedEngineers: (ticket.problem_eng || []).map((eng) => ({

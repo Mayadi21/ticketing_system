@@ -2,6 +2,15 @@
 import { db } from '@/lib/db';
 import TicketDetail from './TicketDetailEngineer';
 
+function resolveAttachmentUrl(filePath: string): string {
+  if (filePath.startsWith('http') || filePath.startsWith('/')) return filePath;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (supabaseUrl) {
+    return `${supabaseUrl}/storage/v1/object/public/attachments/${filePath}`;
+  }
+  return `/attachments/${filePath}`;
+}
+
 interface PageProps {
   params: Promise<{ id: string }>;
 }
@@ -53,13 +62,13 @@ export default async function EngineerTicketDetailPage({ params }: PageProps) {
 
       attachments: (ticket.problem_attachment || []).map((att) => ({
         id: att.id.toString(),
-        url: att.file_path.startsWith('http') || att.file_path.startsWith('/') ? att.file_path : `/attachments/${att.file_path}`,
+        url: resolveAttachmentUrl(att.file_path),
       })),
 
       solutionNote: ticket.solution_note || null,
       solutionAttachments: (ticket.solution_attachment || []).map((att) => ({
         id: att.id.toString(),
-        url: att.file_path.startsWith('http') || att.file_path.startsWith('/') ? att.file_path : `/attachments/${att.file_path}`,
+        url: resolveAttachmentUrl(att.file_path),
       })),
 
       assignedEngineers: (ticket.problem_eng || []).map((eng) => ({
