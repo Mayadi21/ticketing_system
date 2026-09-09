@@ -2,7 +2,7 @@
 -- EXTENSION
 -- =====================================================
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
-
+TRUNCATE TABLE public."user", public.branch RESTART IDENTITY CASCADE;
 -- =====================================================
 -- BRANCH SEEDER
 -- =====================================================
