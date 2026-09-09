@@ -38,7 +38,7 @@ VALUES
     'Super Administrator',
     'superadmin@gmail.com',
     crypt('password', gen_salt('bf')),
-    'SUPERADMIN',
+    'SUPER_ADMIN',
     '080000000000'
 ),
 (
